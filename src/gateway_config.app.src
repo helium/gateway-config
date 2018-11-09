@@ -5,7 +5,9 @@
   {mod, { gateway_config_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    lager,
+    gatt
    ]},
   {env,[]},
   {modules, []},
