@@ -15,6 +15,9 @@ endif
 compile:
 	$(REBAR) compile
 
+rel:
+	$(REBAR) release -d false
+
 shell:
 	$(REBAR) shell
 
