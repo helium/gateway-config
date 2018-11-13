@@ -15,6 +15,7 @@ init(_) ->
     Characteristics =
         [
          {gateway_gatt_char_wifi_status, 0, []},
-         {gateway_gatt_char_wifi_ssid, 0, []}
+         {gateway_gatt_char_wifi_ssid, 1, []},
+         {gateway_gatt_char_wifi_pass, 2, []}
         ],
     {ok, Characteristics, []}.
