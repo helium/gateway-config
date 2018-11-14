@@ -1,34 +1,32 @@
--module(gateway_gatt_char_wifi_status).
+-module(gateway_gatt_char_wifi_ssid).
 -include("gateway_gatt.hrl").
 
 -behavior(gatt_characteristic).
 
 -export([init/2, uuid/1, flags/1,
          read_value/1, write_value/2,
-         start_notify/1, stop_notify/1,
-         handle_signal/3]).
+         start_notify/1, stop_notify/1]).
 
 -record(state, { path :: ebus:object_path(),
                  notify=false :: boolean(),
-                 value :: binary(),
-                 signal :: ebus:filter_id()
+                 value :: binary()
                }).
 
 
 uuid(#state{}) ->
-    ?UUID_GATEWAY_GATT_CHAR_WIFI_STATUS.
+    ?UUID_GATEWAY_GATT_CHAR_WIFI_SSID.
 
 flags(#state{}) ->
-    [read, notify].
+    [read, write, notify].
 
 init(Path, _) ->
-    {ok, SignalID} = connman:register_state_notify({tech, wifi}, self(), Path),
     Descriptors =
         [
-         {gatt_descriptor_cud, 0, ["WiFi Status"]}
+         {gatt_descriptor_cud, 0, ["WiFi SSID"]}
         ],
     {ok, Descriptors,
-     #state{path=Path, value=signal_to_value(false), signal=SignalID}}.
+     #state{path=Path, value= <<"unknown">>}}.
+
 
 start_notify(State=#state{notify=true}) ->
     %% Already notifying
@@ -46,21 +44,8 @@ read_value(State=#state{value=Value}) ->
     {ok, Value, State}.
 
 write_value(State=#state{}, Bin) ->
+    lager:info("Set WiFi SSID: ~p", [binary_to_list(Bin)]),
     {ok, maybe_notify_value(State#state{value=Bin})}.
-
-handle_signal(SignalID, Msg, State=#state{signal=SignalID}) ->
-    %% Wifi state changed
-    case ebus_message:args(Msg) of
-        {ok, ["Connected", Value]} ->
-            lager:info("WiFi connected property changed to ~p", [Value]),
-            write_value(State, signal_to_value(Value));
-        {ok, _} ->
-            ok;
-        {error, Error} ->
-            lager:notice("Error decoding WiFi state: ~p", [Error]),
-            ok
-    end.
-
 
 %%
 %% Internal
@@ -71,8 +56,3 @@ maybe_notify_value(State=#state{notify=false}) ->
 maybe_notify_value(State=#state{}) ->
     gatt_characteristic:value_changed(State#state.path,
                                       State#state.value).
-
-signal_to_value(true) ->
-    <<"online">>;
-signal_to_value(false) ->
-    <<"idle">>.
