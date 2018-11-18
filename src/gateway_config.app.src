@@ -9,8 +9,8 @@
     lager,
     ebus,
     gatt,
-    connman
-    %ubx
+    connman,
+    ubx
    ]},
   {env,[]},
   {modules, []},

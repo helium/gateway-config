@@ -15,8 +15,8 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    gatt:start_application(gateway_gatt_application).
-    %gateway_config_sup:start_link().
+    gatt:start_application(gateway_gatt_application),
+    gateway_config_sup:start_link().
 
 %%--------------------------------------------------------------------
 stop(_State) ->
