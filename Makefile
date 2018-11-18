@@ -15,9 +15,6 @@ endif
 compile:
 	$(REBAR) compile
 
-rel:
-	$(REBAR) release -d false
-
 shell:
 	$(REBAR) shell
 
@@ -32,6 +29,9 @@ test:
 
 typecheck:
 	$(REBAR) dialyzer
+
+release:
+	$(REBAR) as prod release -n gateway_config
 
 doc:
 	$(REBAR) edoc

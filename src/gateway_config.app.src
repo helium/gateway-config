@@ -7,8 +7,10 @@
    [kernel,
     stdlib,
     lager,
+    ebus,
     gatt,
-    connman
+    connman,
+    ubx
    ]},
   {env,[]},
   {modules, []},
