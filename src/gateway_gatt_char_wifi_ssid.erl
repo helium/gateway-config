@@ -45,6 +45,7 @@ read_value(State=#state{value=Value}) ->
 
 write_value(State=#state{}, Bin) ->
     lager:info("Set WiFi SSID: ~p", [binary_to_list(Bin)]),
+    self() ! {changed_wifi_ssid, Bin},
     {ok, maybe_notify_value(State#state{value=Bin})}.
 
 %%

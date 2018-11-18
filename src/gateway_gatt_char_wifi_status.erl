@@ -70,7 +70,8 @@ maybe_notify_value(State=#state{notify=false}) ->
     State;
 maybe_notify_value(State=#state{}) ->
     gatt_characteristic:value_changed(State#state.path,
-                                      State#state.value).
+                                      State#state.value),
+    State.
 
 signal_to_value(true) ->
     <<"online">>;

@@ -31,8 +31,17 @@ start_link() ->
 %% Before OTP 18 tuples must be used to specify a child. e.g.
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
+    {ok, B} = ebus:system(),
+    UBXArgs = application:get_all_env(ubx),
     SupFlags = {one_for_all, 3, 10},
-    ChildSpecs = [],
+    ChildSpecs = [
+                  #{
+                    id => gateway_ubx,
+                    start => {gateway_ubx, start_link, [B, UBXArgs]},
+                    type => worker,
+                    restart => permanent
+                  }
+                 ],
     {ok, {SupFlags, ChildSpecs}}.
 
 %%====================================================================

@@ -30,5 +30,8 @@ test:
 typecheck:
 	$(REBAR) dialyzer
 
+release:
+	$(REBAR) as prod release -n gateway_config
+
 doc:
 	$(REBAR) edoc

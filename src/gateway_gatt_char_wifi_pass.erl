@@ -27,4 +27,6 @@ init(Path, _) ->
 
 
 write_value(State=#state{}, Bin) ->
+    lager:info("Changed WiFi password"),
+    self() ! {changed_wifi_pass, Bin},
     {ok, State#state{value=Bin}}.
