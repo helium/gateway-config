@@ -16,15 +16,15 @@
        {ref,"f2e55aad0e5aaa05fc74aa953a3298ef743e828e"}},
   0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},2},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.6.5">>},1},
- {<<"serial">>,
-  {git,"https://github.com/Vagabond/erlang-serial",
-       {ref,"d9e44d1b89a6c3de092cb2f7f04b01efc27a4209"}},
-  1},
- {<<"ubx">>,
-  {git,"https://github.com/helium/erlang-ubx",
-       {ref,"0a578175e5acadbc3b515c2d6e6e08c904c59265"}},
-  0}]}.
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.6.5">>},1}]}.
+% {<<"serial">>,
+%  {git,"https://github.com/Vagabond/erlang-serial",
+%       {ref,"d9e44d1b89a6c3de092cb2f7f04b01efc27a4209"}},
+%  1},
+% {<<"ubx">>,
+%  {git,"https://github.com/helium/erlang-ubx",
+%       {ref,"0a578175e5acadbc3b515c2d6e6e08c904c59265"}},
+%  0}]}.
 [
 {pkg_hash,[
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
