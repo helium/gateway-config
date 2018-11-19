@@ -23,8 +23,8 @@ init(Args) ->
         true ->
             Gpio = proplists:get_value(gpio, Args, 68),
             {ok, Pid} = ubx:start_link(Filename, Gpio, [], self()),
-            ubx:enable_message(nav_posllh, 5, Pid),
-            ubx:enable_message(nav_sol, 5, Pid),
+            ubx:enable_message(Pid, nav_posllh, 5),
+            ubx:enable_message(Pid, nav_sol, 5),
             {ok, #state{ubx_handle=Pid}};
         _ ->
             lager:warning("No UBX filename or device found, running in stub mode"),
