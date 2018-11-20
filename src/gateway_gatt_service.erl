@@ -25,8 +25,12 @@ init(_) ->
          {gateway_gatt_char_led_match_status, 4, []},
          {gateway_gatt_char_qr_code, 5, []}
         ],
+    self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
 
+handle_info(enable_wifi, State=#state{}) ->
+    connman:enable(wifi, true),
+    {noreply, State};
 handle_info({changed_wifi_ssid, Value}, State=#state{}) ->
     {noreply, State#state{ssid=binary_to_list(Value)}};
 handle_info({changed_wifi_pass, _}, State=#state{ssid=""}) ->
