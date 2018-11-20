@@ -23,7 +23,7 @@
   1},
  {<<"ubx">>,
   {git,"https://github.com/helium/erlang-ubx",
-       {ref,"0a578175e5acadbc3b515c2d6e6e08c904c59265"}},
+       {ref,"37413d9d73150863cc3404e370954829c78c03f3"}},
   0}]}.
 [
 {pkg_hash,[
