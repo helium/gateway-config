@@ -4,7 +4,7 @@
 -behavior(gatt_characteristic).
 
 -export([init/2, uuid/1, flags/1,
-         read_value/1, write_value/2,
+         read_value/1,
          start_notify/1, stop_notify/1]).
 
 -record(state, { path :: ebus:object_path(),
@@ -41,9 +41,6 @@ stop_notify(State=#state{}) ->
 
 read_value(State=#state{value=Value}) ->
     {ok, Value, State}.
-
-write_value(State=#state{}, Bin) ->
-    {ok, maybe_notify_value(State#state{value=Bin})}.
 
 
 %%
