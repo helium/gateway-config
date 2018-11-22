@@ -13,9 +13,10 @@
   1},
  {<<"gatt">>,
   {git,"https://github.com/helium/ebus-gatt",
-       {ref,"f2e55aad0e5aaa05fc74aa953a3298ef743e828e"}},
+       {ref,"8487df4fb31824afbabddeec517cbd25468d044b"}},
   0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},2},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.6.5">>},1},
  {<<"serial">>,
   {git,"https://github.com/Vagabond/erlang-serial",
@@ -28,5 +29,6 @@
 [
 {pkg_hash,[
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
+ {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
  {<<"lager">>, <<"831910109F3FCB503DEBF658CA0538836B348C58BFBF349A6D48228096CE9040">>}]}
 ].
