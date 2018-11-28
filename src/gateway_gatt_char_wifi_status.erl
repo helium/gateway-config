@@ -53,12 +53,13 @@ handle_signal(SignalID, Msg, State=#state{signal=SignalID}) ->
     case ebus_message:args(Msg) of
         {ok, ["Connected", Value]} ->
             lager:info("WiFi connected property changed to ~p", [Value]),
-            write_value(State, signal_to_value(Value));
+            {ok, NewState} = write_value(State, signal_to_value(Value)),
+            {noreply, NewState};
         {ok, _} ->
-            ok;
+            {noreply, State};
         {error, Error} ->
             lager:notice("Error decoding WiFi state: ~p", [Error]),
-            ok
+            {noreply, State}
     end.
 
 

@@ -36,8 +36,8 @@ init([]) ->
     SupFlags = {one_for_all, 3, 10},
     ChildSpecs = [
                   #{
-                    id => gateway_ubx,
-                    start => {gateway_ubx, start_link, [B, UBXArgs]},
+                    id => gateway_config_worker,
+                    start => {gateway_config_worker, start_link, [B, UBXArgs]},
                     type => worker,
                     restart => permanent
                   }

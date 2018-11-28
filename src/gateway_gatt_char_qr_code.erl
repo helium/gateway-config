@@ -7,7 +7,7 @@
          write_value/2]).
 
 -record(state, { path :: ebus:object_path(),
-                 value :: binary()
+                 value :: #{binary() => binary()}
                }).
 
 
@@ -23,10 +23,20 @@ init(Path, _) ->
          {gatt_descriptor_cud, 0, ["QR Code"]}
         ],
     {ok, Descriptors,
-     #state{path=Path, value= <<>>}}.
+     #state{path=Path, value=#{}}}.
 
 
 write_value(State=#state{}, Bin) ->
     lager:info("Changed QR code"),
-    self() ! {changed_qr_code, Bin},
-    {ok, State#state{value=Bin}}.
+    %% Catch errors in case there is a malformed binary
+    case (catch jsx:decode(Bin)) of
+        {'EXIT', Reason} ->
+            lager:warning("Failed to parse QRCode JSON: ~p", [Reason]),
+            {ok, State};
+        BinEntries ->
+            Entries = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- BinEntries],
+            lager:info("Decoded QRCode JSON: ~p", [Entries]),
+            Map = maps:from_list(Entries),
+            self() ! {changed_qr_code, Map},
+            {ok, State#state{value=Map}}
+    end.
