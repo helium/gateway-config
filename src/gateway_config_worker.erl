@@ -1,12 +1,16 @@
--module(gateway_ubx).
+-module(gateway_config_worker).
 
 -behavior(ebus_object).
 
--define(OBJECT_PATH, "/com/helium/GPS").
--define(OBJECT_INTERFACE, "com.helium.GPS").
+-define(WORKER, gateway_config).
+
+-include("gateway_config.hrl").
 
 %% ebus_object
 -export([start_link/2, init/1, handle_info/2, handle_message/3, terminate/2]).
+%% api
+-export([handle_qr_code/1]).
+
 
 -record(state, {
                 ubx_handle :: pid() | undefined,
@@ -14,10 +18,19 @@
                 gps_position=#{} :: #{string() => float()}
                }).
 
+%% API
+handle_qr_code(Map) ->
+    ?WORKER ! {handle_qr_code, Map}.
+
+
+%% ebus_object
+
 start_link(Bus, Args) ->
-    ebus_object:start_link(Bus, ?OBJECT_PATH, ?MODULE, Args, []).
+    ok = ebus:request_name(Bus, ?CONFIG_APPLICATION_NAME),
+    ebus_object:start_link(Bus, ?CONFIG_OBJECT_PATH, ?MODULE, Args, []).
 
 init(Args) ->
+    erlang:register(?WORKER, self()),
     Filename = proplists:get_value(filename, Args, ""),
     case (filelib:is_regular("/dev/"++Filename)) of
         true ->
@@ -32,7 +45,7 @@ init(Args) ->
     end.
 
 
-handle_message("Position", _Msg, State=#state{}) ->
+handle_message(?CONFIG_MEMBER_POSITION, _Msg, State=#state{}) ->
     {reply,
      [bool, {dict, string, double}],
      [State#state.gps_lock, State#state.gps_position], State};
@@ -58,8 +71,14 @@ handle_info({nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}, State=#sta
                  "v_accuracy" => VerticalAcc
                 },
     {noreply, State#state{gps_position=Position},
-     {signal, ?OBJECT_PATH, ?OBJECT_INTERFACE, "Position",
+     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION,
       [{dict, string, double}], [Position]}};
+handle_info({handle_qr_code, Map}, State=#state{}) ->
+    {noreply, State,
+     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_ADD_GW,
+      [{dict, string, string}], [Map]
+     }
+    };
 
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
