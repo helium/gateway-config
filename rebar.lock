@@ -15,16 +15,12 @@
   {git,"https://github.com/helium/ebus-gatt",
        {ref,"40779e7411e8a528b65e5395d232ba6ee344e0c3"}},
   0},
- {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},2},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.6.5">>},1},
- {<<"serial">>,
-  {git,"https://github.com/Vagabond/erlang-serial",
-       {ref,"d9e44d1b89a6c3de092cb2f7f04b01efc27a4209"}},
-  1},
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.6.5">>},0},
  {<<"ubx">>,
   {git,"https://github.com/helium/erlang-ubx",
-       {ref,"37413d9d73150863cc3404e370954829c78c03f3"}},
+       {ref,"d31c411a711d952a9921ca6d447781e83fb4c471"}},
   0}]}.
 [
 {pkg_hash,[
