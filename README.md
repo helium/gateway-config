@@ -78,3 +78,6 @@ On a development system you can start the service by starting a rebar shell:
 [license badge]: https://img.shields.io/github/license/helium/gateway-config.svg
 [erlang version badge]: https://img.shields.io/badge/erlang-21.1-blue.svg?style=flat-square
 [build tool]: https://img.shields.io/badge/build%20tool-rebar3-orange.svg?style=flat-square
+
+[rebar]: http://rebar3.org
+[erlang]: http://erlang.org
