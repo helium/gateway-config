@@ -31,9 +31,9 @@ start_link(Bus, Args) ->
 
 init(Args) ->
     erlang:register(?WORKER, self()),
-    Filename = proplists:get_value(filename, Args, ""),
-    case (filelib:is_regular("/dev/"++Filename)) of
-        true ->
+    Filename = proplists:get_value(filename, Args),
+    case (file:read_file_info("/dev/"++Filename)) of
+        {ok, _} ->
             Gpio = proplists:get_value(gpio, Args, 68),
             {ok, Pid} = ubx:start_link(Filename, Gpio, [], self()),
             ubx:enable_message(Pid, nav_posllh, 5),
