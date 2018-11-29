@@ -74,6 +74,7 @@ handle_info({nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}, State=#sta
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION,
       [{dict, string, double}], [Position]}};
 handle_info({handle_qr_code, Map}, State=#state{}) ->
+    lager:info("Signaling Add Gateway with: ~p", [Map]),
     {noreply, State,
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_ADD_GW,
       [{dict, string, string}], [Map]

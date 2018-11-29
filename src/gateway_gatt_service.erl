@@ -47,8 +47,12 @@ handle_info({changed_wifi_pass, Value}, State=#state{}) ->
 handle_info({connect_result, _Tech, Result}, State=#state{}) ->
     lager:info("Connect result ~p", [Result]),
     {noreply, State};
+handle_info({changed_led_match, Tuples}, State=#state{}) ->
+    lager:info("Got LED match attempt: ~p", [Tuples]),
+    {noreply, State};
+
 handle_info({changed_qr_code, Map}, State=#state{}) ->
-    gateway_config:handle_qr_code(Map),
+    gateway_config_worker:handle_qr_code(Map),
     {noreply, State};
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p ~p",[Msg, State]),

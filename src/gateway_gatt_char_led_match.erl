@@ -44,8 +44,12 @@ read_value(State=#state{value=Value}) ->
     {ok, Value, State}.
 
 write_value(State=#state{}, Bin) ->
-    lager:info("Set LED match: ~p", [binary_to_list(Bin)]),
-    self() ! {changed_led_match, Bin},
+    case (catch jsx:decode(Bin)) of
+        {'EXIT', Reason} ->
+            lager:warning("Failed to decode LED Match ~p: ~p", [Bin, Reason]);
+        Tuples ->
+            self() ! {changed_led_match, Tuples}
+    end,
     {ok, maybe_notify_value(State#state{value=Bin})}.
 
 %%
