@@ -10,7 +10,8 @@
     ebus,
     gatt,
     connman,
-    ubx
+    ubx,
+    jsx
    ]},
   {env,[]},
   {modules, []},
