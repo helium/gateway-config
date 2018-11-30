@@ -32,6 +32,8 @@ start_link() ->
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
     {ok, B} = ebus:system(),
+    %% Set up this connman to be the agent for authorization requests
+    ok = connman:start_agent(),
     UBXArgs = application:get_all_env(ubx),
     SupFlags = {one_for_all, 3, 10},
     ChildSpecs = [
