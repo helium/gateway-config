@@ -4,4 +4,5 @@
 -define(CONFIG_OBJECT_INTERFACE, "com.helium.Config").
 
 -define(CONFIG_MEMBER_POSITION, "Position").
+-define(CONFIG_MEMBER_POSITION_LOCK, "PositionLock").
 -define(CONFIG_MEMBER_ADD_GW, "AddGateway").

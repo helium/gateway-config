@@ -53,16 +53,22 @@ handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled message ~p", Member),
     {noreply, State}.
 
-handle_info({nav_sol, GPSFix}, State) ->
-    case GPSFix == 3 of
-        true ->
-            {noreply, State#state{gps_lock=true}};
-        false ->
-            {noreply, State#state{gps_lock=false}}
-    end;
-handle_info({nav_posllh, _}, State=#state{gps_lock=false}) ->
+
+handle_info({packet, {nav_sol, 3}}, State=#state{gps_lock=false}) ->
+    %% Reeceive a gps lock when we did not have a lock. Set the lock
+    %% and signal out
+    {noreply, State#state{gps_lock=true},
+     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION_LOCK,
+      [bool], [true]}};
+handle_info({packet, {nav_sol, _}}, State=#state{gps_lock=true}) ->
+    %% Reeceive a gps unlock when we did have a lock. Clear the lock
+    %% and signal out
+    {noreply, State#state{gps_lock=false},
+     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION_LOCK,
+      [bool], [false]}};
+handle_info({packet, {nav_posllh, _}}, State=#state{gps_lock=false}) ->
     {noreply, State};
-handle_info({nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}, State=#state{}) ->
+handle_info({packet, {nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}}, State=#state{}) ->
     Position = #{
                  "lat" => Lat,
                  "lon" => Lon,
