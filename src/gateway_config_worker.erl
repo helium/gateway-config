@@ -66,7 +66,7 @@ handle_info({nav_sol, _}, State=#state{gps_lock=true}) ->
     {noreply, State#state{gps_lock=false},
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION_LOCK,
       [bool], [false]}};
-handle_info({packet, {nav_posllh, _}}, State=#state{gps_lock=false}) ->
+handle_info({nav_posllh, _}, State=#state{gps_lock=false}) ->
     {noreply, State};
 handle_info({nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}, State=#state{}) ->
     Position = #{
