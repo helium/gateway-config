@@ -54,13 +54,13 @@ handle_message(Member, _Msg, State) ->
     {noreply, State}.
 
 
-handle_info({packet, {nav_sol, 3}}, State=#state{gps_lock=false}) ->
+handle_info({nav_sol, 3}, State=#state{gps_lock=false}) ->
     %% Reeceive a gps lock when we did not have a lock. Set the lock
     %% and signal out
     {noreply, State#state{gps_lock=true},
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION_LOCK,
       [bool], [true]}};
-handle_info({packet, {nav_sol, _}}, State=#state{gps_lock=true}) ->
+handle_info({nav_sol, _}, State=#state{gps_lock=true}) ->
     %% Reeceive a gps unlock when we did have a lock. Clear the lock
     %% and signal out
     {noreply, State#state{gps_lock=false},
@@ -68,7 +68,7 @@ handle_info({packet, {nav_sol, _}}, State=#state{gps_lock=true}) ->
       [bool], [false]}};
 handle_info({packet, {nav_posllh, _}}, State=#state{gps_lock=false}) ->
     {noreply, State};
-handle_info({packet, {nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}}, State=#state{}) ->
+handle_info({nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}, State=#state{}) ->
     Position = #{
                  "lat" => Lat,
                  "lon" => Lon,
@@ -79,6 +79,9 @@ handle_info({packet, {nav_posllh, {Lat,Lon,Height,HorizontalAcc,VerticalAcc}}}, 
     {noreply, State#state{gps_position=Position},
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION,
       [{dict, string, double}], [Position]}};
+handle_info({packet, Packet}, State=#state{}) ->
+    lager:warning("Received unrequested ubx packet: ~p", [Packet]),
+    {noreply, State};
 handle_info({handle_qr_code, Map}, State=#state{}) ->
     lager:info("Signaling Add Gateway with: ~p", [Map]),
     {noreply, State,

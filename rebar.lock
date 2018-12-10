@@ -1,7 +1,7 @@
 {"1.1.0",
 [{<<"connman">>,
   {git,"https://github.com/helium/ebus-connman",
-       {ref,"d05c0741e455973bb4e6e3a5ff670e7b4c7fc665"}},
+       {ref,"ceb53c037bcaa4f0b8de6cb8a15e29ff2f7fadfb"}},
   0},
  {<<"ebus">>,
   {git,"https://github.com/helium/ebus",
