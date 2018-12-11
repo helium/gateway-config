@@ -5,6 +5,8 @@
 -define(WORKER, gateway_config).
 
 -include("gateway_config.hrl").
+-include_lib("ebus/include/ebus.hrl").
+
 
 %% ebus_object
 -export([start_link/2, init/1, handle_info/2, handle_message/3, terminate/2]).
@@ -45,13 +47,13 @@ init(Args) ->
     end.
 
 
-handle_message(?CONFIG_MEMBER_POSITION, _Msg, State=#state{}) ->
+handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     {reply,
      [bool, {dict, string, double}],
      [State#state.gps_lock, State#state.gps_position], State};
 handle_message(Member, _Msg, State) ->
-    lager:warning("Unhandled message ~p", Member),
-    {noreply, State}.
+    lager:warning("Unhandled config message ~p", [Member]),
+    {reply_error, ?DBUS_ERROR_NOT_SUPPORTED, Member, State}.
 
 
 handle_info({nav_sol, 3}, State=#state{gps_lock=Lock}) ->

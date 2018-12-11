@@ -2,6 +2,7 @@
 
 -define(CONFIG_OBJECT_PATH, "/com/helium/Config").
 -define(CONFIG_OBJECT_INTERFACE, "com.helium.Config").
+-define(CONFIG_OBJECT(M), ?CONFIG_OBJECT_INTERFACE ++ "." ++ M).
 
 -define(CONFIG_MEMBER_POSITION, "Position").
 -define(CONFIG_MEMBER_POSITION_LOCK, "PositionLock").
