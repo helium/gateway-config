@@ -11,10 +11,10 @@
                }).
 
 
-uuid(#state{}) ->
+uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_QR_CODE.
 
-flags(#state{}) ->
+flags(_) ->
     [write].
 
 init(Path, _) ->

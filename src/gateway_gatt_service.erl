@@ -3,13 +3,13 @@
 
 -behavior(gatt_service).
 
--export([init/1, uuid/1, handle_info/2]).
+-export([init/1, uuid/0, handle_info/2]).
 
 -record(state, {
                 ssid="" :: string()
                }).
 
-uuid(_) ->
+uuid() ->
     ?UUID_GATEWAY_GATT_SERVICE.
 
 init(_) ->
@@ -21,9 +21,7 @@ init(_) ->
          {gateway_gatt_char_wifi_status, 0, []},
          {gateway_gatt_char_wifi_ssid, 1, []},
          {gateway_gatt_char_wifi_pass, 2, []},
-         {gateway_gatt_char_led_match, 3, []},
-         {gateway_gatt_char_led_match_status, 4, []},
-         {gateway_gatt_char_qr_code, 5, []}
+         {gateway_gatt_char_qr_code, 3, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.

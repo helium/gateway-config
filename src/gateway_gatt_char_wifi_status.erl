@@ -15,10 +15,10 @@
                }).
 
 
-uuid(#state{}) ->
+uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_WIFI_STATUS.
 
-flags(#state{}) ->
+flags(_) ->
     [read, notify].
 
 init(Path, _) ->

@@ -11,10 +11,10 @@
                }).
 
 
-uuid(#state{}) ->
+uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_WIFI_PASS.
 
-flags(#state{}) ->
+flags(_) ->
     [write].
 
 init(Path, _) ->
