@@ -45,6 +45,8 @@ init(Args) ->
         {ok, _} ->
             Gpio = proplists:get_value(gpio, Args, 68),
             {ok, Pid} = ubx:start_link(Filename, Gpio, [], self()),
+            ubx:disable_message(Pid, nav_sol),
+            ubx:disable_message(Pid, nav_posllh),
             ubx:enable_message(Pid, nav_pvt, 5),
             ubx:enable_message(Pid, nav_sat, 5),
             {ok, #state{ubx_handle=Pid}};
