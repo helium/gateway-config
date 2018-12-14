@@ -85,11 +85,16 @@ format_sat_info([]) ->
     clique_status:text("No GPS Satellite Info Available");
 format_sat_info(SatInfos) ->
     FormatSatInfo =
-        fun(#{id := Id, sv_id := SvID, elevation := Elevation, azimuth := Azimuth}) ->
-                [{id, Id},
+        fun(#{type := Type, id := SvID, elevation := Elevation, azimuth := Azimuth,
+              quality := Quality, cno := CNO, health := Health, used := Used}) ->
+                [{type, Type},
                  {sv_id, SvID},
                  {elevation, Elevation},
-                 {azimuth, Azimuth}
+                 {azimuth, Azimuth},
+                 {strength, CNO},
+                 {health, Health},
+                 {quality, Quality},
+                 {used, Used}
                 ]
         end,
     clique_status:table(lists:map(FormatSatInfo, SatInfos)).

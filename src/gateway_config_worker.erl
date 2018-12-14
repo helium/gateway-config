@@ -87,7 +87,7 @@ handle_info({nav_pvt, NavMap}, State=#state{}) ->
             maybe_signal_position(NewState),
             {noreply, State#state{gps_info=NavMap}}
     end;
-handle_info({nav_sats, NavSats}, State=#state{}) ->
+handle_info({nav_sat, NavSats}, State=#state{}) ->
     {noreply, State#state{gps_sat_info=NavSats}};
 handle_info(signal_position, State=#state{}) ->
     Position = navmap_to_position(State#state.gps_info),
