@@ -1,6 +1,6 @@
 -module(gateway_config).
 
--export([firmware_version/0, serial_number/0]).
+-export([firmware_version/0, serial_number/0, gps_info/0, gps_sat_info/0]).
 
 firmware_version() ->
     case file:read_file("/etc/lsb_release") of
@@ -26,3 +26,9 @@ serial_number() ->
         {_,  Addr} ->
              string:join([io_lib:format("~2.16.0B", [X]) || X <- Addr], ":")
     end.
+
+gps_info() ->
+    gateway_config_worker:gps_info().
+
+gps_sat_info() ->
+    gateway_config_worker:gps_sat_info().
