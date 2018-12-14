@@ -1,8 +1,16 @@
 {"1.1.0",
-[{<<"connman">>,
+[{<<"clique">>,
+  {git,"https://github.com/helium/clique.git",
+       {ref,"e327ba3058004c32dd2166416a60497ba87933af"}},
+  0},
+ {<<"connman">>,
   {git,"https://github.com/helium/ebus-connman",
        {ref,"ceb53c037bcaa4f0b8de6cb8a15e29ff2f7fadfb"}},
   0},
+ {<<"cuttlefish">>,
+  {git,"https://github.com/helium/cuttlefish.git",
+       {ref,"8672838e8f4ef61602aee6e4ff97ec9be54031dc"}},
+  1},
  {<<"ebus">>,
   {git,"https://github.com/helium/ebus",
        {ref,"09bba9978bfd207bbb8663b4b072a50d1fbf01aa"}},
@@ -15,15 +23,13 @@
   {git,"https://github.com/helium/ebus-gatt",
        {ref,"2bd39785d5eee63ed6e1af2e310b8e594cbb9275"}},
   0},
+ {<<"getopt">>,{pkg,<<"getopt">>,<<"1.0.1">>},2},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.6.7">>},0},
- {<<"ubx">>,
-  {git,"https://github.com/helium/erlang-ubx",
-       {ref,"d31c411a711d952a9921ca6d447781e83fb4c471"}},
-  0}]}.
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.6.7">>},0}]}.
 [
 {pkg_hash,[
+ {<<"getopt">>, <<"C73A9FA687B217F2FF79F68A3B637711BB1936E712B521D8CE466B29CBF7808A">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
  {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
  {<<"lager">>, <<"2FBF823944CAA0FC10DF5EC13F3F047524A249BB32F0D801B7900C9610264286">>}]}
