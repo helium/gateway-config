@@ -22,10 +22,11 @@ flags(_) ->
 init(Path, _) ->
     Descriptors =
         [
-         {gatt_descriptor_cud, 0, ["WiFi SSID"]}
+         {gatt_descriptor_cud, 0, ["WiFi SSID"]},
+         {gatt_descriptor_pf, 1, [utf8_string]}
         ],
     {ok, Descriptors,
-     #state{path=Path, value= <<"unknown">>}}.
+     #state{path=Path, value= <<>>}}.
 
 
 start_notify(State=#state{notify=true}) ->

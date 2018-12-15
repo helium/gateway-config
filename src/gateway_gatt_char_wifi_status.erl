@@ -23,12 +23,14 @@ flags(_) ->
 
 init(Path, _) ->
     {ok, SignalID} = connman:register_state_notify({tech, wifi}, self(), Path),
+    {ok, Value} = connman:state({tech, wifi}),
     Descriptors =
         [
-         {gatt_descriptor_cud, 0, ["WiFi Status"]}
+         {gatt_descriptor_cud, 0, ["WiFi Status"]},
+         {gatt_descriptor_pf, 1, [utf8_string]}
         ],
     {ok, Descriptors,
-     #state{path=Path, value=signal_to_value(false), signal=SignalID}}.
+     #state{path=Path, value=value_to_binary(Value), signal=SignalID}}.
 
 start_notify(State=#state{notify=true}) ->
     %% Already notifying
@@ -53,7 +55,7 @@ handle_signal(SignalID, Msg, State=#state{signal=SignalID}) ->
     case ebus_message:args(Msg) of
         {ok, ["Connected", Value]} ->
             lager:info("WiFi connected property changed to ~p", [Value]),
-            {ok, NewState} = write_value(State, signal_to_value(Value)),
+            {ok, NewState} = write_value(State, value_to_binary(Value)),
             {noreply, NewState};
         {ok, _} ->
             {noreply, State};
@@ -74,7 +76,11 @@ maybe_notify_value(State=#state{}) ->
                                       State#state.value),
     State.
 
-signal_to_value(true) ->
+value_to_binary(true) ->
+    value_to_binary(online);
+value_to_binary(online) ->
     <<"online">>;
-signal_to_value(false) ->
+value_to_binary(false) ->
+    value_to_binary(idle);
+value_to_binary(idle) ->
     <<"idle">>.
