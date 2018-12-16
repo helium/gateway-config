@@ -59,7 +59,7 @@ init(Args) ->
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     Position = navmap_to_position(State#state.gps_info),
     {reply,
-     [bool, {dict, string, double}],
+     [bool, {dict, string, variant}],
      [State#state.gps_lock, Position], State};
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
@@ -82,12 +82,12 @@ handle_info({nav_pvt, NavMap}, State=#state{}) ->
         {true, NewState} ->
             lager:debug("Signaling GPS lock ~p", [NewState#state.gps_lock]),
             maybe_signal_position(NewState),
-            {noreply, State#state{gps_info=NavMap},
+            {noreply, NewState#state{gps_info=NavMap},
              {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION_LOCK,
               [bool], [NewState#state.gps_lock]}};
         {false, NewState} ->
             maybe_signal_position(NewState),
-            {noreply, State#state{gps_info=NavMap}}
+            {noreply, NewState#state{gps_info=NavMap}}
     end;
 handle_info({nav_sat, NavSats}, State=#state{}) ->
     {noreply, State#state{gps_sat_info=NavSats}};
@@ -96,7 +96,7 @@ handle_info(signal_position, State=#state{}) ->
     lager:debug("Signaling locked GPS position ~p", [Position]),
     {noreply, State,
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_POSITION,
-      [{dict, string, double}], [Position]}};
+      [{dict, string, variant}], [Position]}};
 handle_info({packet, Packet}, State=#state{}) ->
     lager:notice("Ignoring unrequested ubx packet: ~p", [Packet]),
     {noreply, State};
@@ -136,6 +136,9 @@ update_gps_lock(_, State=#state{gps_lock=true}) ->
     %% We lost a lock, signal lock
     {true, State#state{gps_lock=false}}.
 
+
+navmap_to_position(Map) when map_size(Map) == 0 ->
+    #{};
 navmap_to_position(#{
                      lat := Lat,
                      lon := Lon,
