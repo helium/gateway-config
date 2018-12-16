@@ -83,4 +83,6 @@ value_to_binary(online) ->
 value_to_binary(false) ->
     value_to_binary(idle);
 value_to_binary(idle) ->
-    <<"idle">>.
+    <<"idle">>;
+value_to_binary(disabled) ->
+    <<"disabled">>.
