@@ -11,6 +11,7 @@
   {git,"https://github.com/helium/cuttlefish.git",
        {ref,"8672838e8f4ef61602aee6e4ff97ec9be54031dc"}},
   1},
+ {<<"dogstatsd">>,{pkg,<<"dogstatsde">>,<<"0.9.2">>},0},
  {<<"ebus">>,
   {git,"https://github.com/helium/ebus",
        {ref,"09bba9978bfd207bbb8663b4b072a50d1fbf01aa"}},
@@ -27,14 +28,19 @@
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.6.7">>},0},
+ {<<"stillir">>,{pkg,<<"stillir">>,<<"1.0.0">>},1},
  {<<"ubx">>,
   {git,"https://github.com/helium/erlang-ubx",
        {ref,"b7fa515811fc8e9bebc581f747ccfbab067bc3da"}},
-  0}]}.
+  0},
+ {<<"worker_pool">>,{pkg,<<"worker_pool">>,<<"3.1.1">>},1}]}.
 [
 {pkg_hash,[
+ {<<"dogstatsd">>, <<"96B4E999EB2419D33C9D55DE06842608AF0A7FA9B23A346DF12D055AF8546CED">>},
  {<<"getopt">>, <<"C73A9FA687B217F2FF79F68A3B637711BB1936E712B521D8CE466B29CBF7808A">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
  {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
- {<<"lager">>, <<"2FBF823944CAA0FC10DF5EC13F3F047524A249BB32F0D801B7900C9610264286">>}]}
+ {<<"lager">>, <<"2FBF823944CAA0FC10DF5EC13F3F047524A249BB32F0D801B7900C9610264286">>},
+ {<<"stillir">>, <<"9E77EAADD2418A61EC7398C01E29DEA26D14F51C42E0B309084493E3ED33337A">>},
+ {<<"worker_pool">>, <<"A9BF27CFF366999784A3F0657F016CE3A57901490858CCA3FB3BE1208BF2110D">>}]}
 ].
