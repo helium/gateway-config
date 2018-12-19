@@ -12,7 +12,8 @@
     connman,
     ubx,
     clique,
-    jsx
+    jsx,
+    dogstatsd
    ]},
   {env,[]},
   {modules, []},
