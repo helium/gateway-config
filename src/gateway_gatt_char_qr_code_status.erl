@@ -99,4 +99,10 @@ maybe_notify_value(State=#state{}) ->
     State.
 
 value_to_binary(Str) ->
-    list_to_binary(Str).
+    Supported = ["init", "received", "sending", "sent", "send_failed"],
+    case lists:member(Str, Supported) of
+        true -> list_to_binary(Str);
+        _ ->
+            lager:error("Invalid qr code status '~p', resetting to init", [Str]),
+            value_to_binary("init")
+    end.
