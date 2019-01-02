@@ -9,16 +9,18 @@
 
 
 %% ebus_object
--export([start_link/2, init/1, handle_call/3, handle_info/2, handle_message/3, terminate/2]).
+-export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
 %% api
--export([handle_qr_code/1, gps_info/0, gps_sat_info/0]).
+-export([handle_qr_code/1, gps_info/0, gps_sat_info/0,
+         download_info/0,download_info/1]).
 
 
 -record(state, {
                 ubx_handle :: pid() | undefined,
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
-                gps_sat_info=[] :: [ubx:nav_sat()]
+                gps_sat_info=[] :: [ubx:nav_sat()],
+                download_info=false :: boolean()
                }).
 
 %% API
@@ -31,6 +33,11 @@ gps_info() ->
 gps_sat_info() ->
     gen_server:call(?WORKER, gps_sat_info).
 
+download_info() ->
+    gen_server:call(?WORKER, download_info).
+
+download_info(Value) ->
+    gen_server:cast(?WORKER, {download_info, Value}).
 
 %% ebus_object
 
@@ -61,6 +68,9 @@ handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     {reply,
      [bool, {dict, string, variant}],
      [State#state.gps_lock, Position], State};
+handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_DOWNLOADING), _Msg, State=#state{}) ->
+    {reply, [bool], [State#state.download_info], State};
+
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
     {reply_error, ?DBUS_ERROR_NOT_SUPPORTED, Member, State}.
@@ -70,10 +80,22 @@ handle_call(gps_info, _From, State=#state{}) ->
     {reply, State#state.gps_info, State};
 handle_call(gps_sat_info, _From, State=#state{}) ->
     {reply, State#state.gps_sat_info, State};
+handle_call(download_info, _From, State=#state{}) ->
+    {reply, State#state.download_info, State};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {reply, ok, State}.
+
+
+handle_cast({download_info, Value}, State=#state{}) ->
+    {noreply, State#state{download_info=Value},
+     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_DOWNLOADING,
+      [bool], [Value]}};
+
+handle_cast(Msg, State=#state{}) ->
+    lager:warning("Unhandled cast ~p", [Msg]),
+    {noreply, State}.
 
 
 handle_info({nav_pvt, NavMap}, State=#state{}) ->

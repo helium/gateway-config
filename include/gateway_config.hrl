@@ -7,3 +7,4 @@
 -define(CONFIG_MEMBER_POSITION, "Position").
 -define(CONFIG_MEMBER_POSITION_LOCK, "PositionLock").
 -define(CONFIG_MEMBER_ADD_GW, "AddGateway").
+-define(CONFIG_MEMBER_DOWNLOADING, "Downloading").
