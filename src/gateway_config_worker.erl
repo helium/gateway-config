@@ -17,6 +17,7 @@
 
 -record(state, {
                 ubx_handle :: pid() | undefined,
+                button_handle :: pid() | undefined,
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
@@ -45,8 +46,17 @@ start_link(Bus, Args) ->
     ok = ebus:request_name(Bus, ?CONFIG_APPLICATION_NAME),
     ebus_object:start_link(Bus, ?CONFIG_OBJECT_PATH, ?MODULE, Args, []).
 
+
 init(Args) ->
     erlang:register(?WORKER, self()),
+    GpsArgs = proplists:get_value(gps, Args, []),
+    UbxPid = init_ubx(GpsArgs),
+    ButtonArgs = proplists:get_value(button, Args, []),
+    ButtonPid = init_button(ButtonArgs),
+    {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
+
+
+init_ubx(Args) ->
     Filename = proplists:get_value(filename, Args),
     case (file:read_file_info("/dev/"++Filename)) of
         {ok, _} ->
@@ -56,12 +66,23 @@ init(Args) ->
             ubx:disable_message(Pid, nav_posllh),
             ubx:enable_message(Pid, nav_pvt, 5),
             ubx:enable_message(Pid, nav_sat, 5),
-            {ok, #state{ubx_handle=Pid}};
+            Pid;
         _ ->
             lager:warning("No UBX filename or device found, running in stub mode"),
-            {ok, #state{ubx_handle=undefined}}
+            undefined
     end.
 
+
+init_button(Args) ->
+    case file:read_file_info("/dev/gpio") of
+        {ok, _} ->
+            Gpio = proplists:get_value(gpio, Args, 90),
+            {ok, Pid} = gpio_button:start_link(Gpio, self()),
+            Pid;
+        _ ->
+            lager:warning("No GPIO device tree found, running in stub mode"),
+            undefined
+    end.
 
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     Position = navmap_to_position(State#state.gps_info),
