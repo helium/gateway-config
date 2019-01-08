@@ -42,7 +42,13 @@ init([]) ->
                     start => {gateway_config_worker, start_link, [B, UBXArgs]},
                     type => worker,
                     restart => permanent
-                  }
+                  },
+                  #{
+                    id => gateway_gatt_application,
+                    restart => permanent,
+                    type => supervisor,
+                    start => {gatt_application_sup, start_link, [gateway_gatt_application, []]}
+                   }
                  ],
     {ok, {SupFlags, ChildSpecs}}.
 
