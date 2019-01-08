@@ -15,7 +15,6 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    gatt:start_application(gateway_gatt_application),
     case gateway_config_sup:start_link() of
         {ok, Pid} ->
             gateway_config_cli_registry:register_cli(),
