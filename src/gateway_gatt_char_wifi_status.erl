@@ -11,7 +11,7 @@
 -record(state, { path :: ebus:object_path(),
                  notify=false :: boolean(),
                  value :: binary(),
-                 signal :: ebus:filter_id()
+                 wifi_signal :: ebus:filter_id()
                }).
 
 
@@ -22,6 +22,7 @@ flags(_) ->
     [read, notify].
 
 init(Path, _) ->
+    %% Currently online status is only determined by the wifi state
     {ok, SignalID} = connman:register_state_notify({tech, wifi}, self(), Path),
     {ok, Value} = connman:state({tech, wifi}),
     Descriptors =
@@ -30,7 +31,7 @@ init(Path, _) ->
          {gatt_descriptor_pf, 1, [utf8_string]}
         ],
     {ok, Descriptors,
-     #state{path=Path, value=value_to_binary(Value), signal=SignalID}}.
+     #state{path=Path, value=value_to_binary(Value), wifi_signal=SignalID}}.
 
 start_notify(State=#state{notify=true}) ->
     %% Already notifying
@@ -50,7 +51,7 @@ read_value(State=#state{value=Value}) ->
 write_value(State=#state{}, Bin) ->
     {ok, maybe_notify_value(State#state{value=Bin})}.
 
-handle_signal(SignalID, Msg, State=#state{signal=SignalID}) ->
+handle_signal(SignalID, Msg, State=#state{wifi_signal=SignalID}) ->
     %% Wifi state changed
     case ebus_message:args(Msg) of
         {ok, ["Connected", Value]} ->

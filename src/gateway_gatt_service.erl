@@ -38,6 +38,22 @@ handle_info({changed_wifi_pass, _}, State=#state{ssid=""}) ->
     lager:notice("Not connecting to an empty SSID"),
     {noreply, State};
 handle_info({changed_wifi_pass, Value}, State=#state{}) ->
+    %% To aid the gatt online notifications we fetch all services that
+    %% are wifi and online or ready and attempt to disconnect them
+    %% before we try to connect to the SSID stored in the state.
+    OnlineWifiPaths =
+        lists:filtermap(fun({Path, M}) ->
+                                lager:info("Checking wifi ~p", [Path]),
+                                case maps:get("Type", M, false) == "wifi" andalso
+                                    lists:member(maps:get("State", M, false), ["online", "ready"]) of
+                                    true -> {true, maps:get("Name", M)};
+                                    false -> false
+                                end
+                        end, connman:services()),
+    lists:foreach(fun(Name) ->
+                          lager:info("Disconnecting from ~p", [Name]),
+                          connman:disconnect(wifi, Name)
+                  end, OnlineWifiPaths),
     lager:info("Trying to connect to WiFI SSID: ~p", [State#state.ssid]),
     case connman:connect(wifi, State#state.ssid, binary_to_list(Value), self()) of
         ok -> ok;
