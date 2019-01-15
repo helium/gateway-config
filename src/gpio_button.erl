@@ -46,18 +46,18 @@ init([GpioNum, Owner, Options]) ->
                      click_timer=make_ref(), click_timeout=ClickTimeout
                     }}.
 
-idle(info, {gpio, GpioNum, falling}, #data{gpio_num=GpioNum}) ->
+idle(info, {gpio_interrupt, GpioNum, falling}, #data{gpio_num=GpioNum}) ->
     keep_state_and_data;
-idle(info, {gpio, GpioNum, rising}, Data=#data{gpio_num=GpioNum}) ->
+idle(info, {gpio_interrupt, GpioNum, rising}, Data=#data{gpio_num=GpioNum}) ->
     {next_state, pressed, button_pressed(Data)};
 
 idle(EventType, Msg, Data) ->
     handle_event(EventType, Msg, Data).
 
 
-pressed(info, {gpio, GpioNum, rising}, #data{gpio_num=GpioNum}) ->
+pressed(info, {gpio_interrupt, GpioNum, rising}, #data{gpio_num=GpioNum}) ->
     keep_state_and_data;
-pressed(info, {gpio, GpioNum, falling}, Data=#data{gpio_num=GpioNum}) ->
+pressed(info, {gpio_interrupt, GpioNum, falling}, Data=#data{gpio_num=GpioNum}) ->
     {next_state, clicked, button_clicked(Data)};
 pressed(info, long_press_timeout, Data=#data{owner=Owner}) ->
     Owner ! {button_long_press, Data#data.gpio_num},
@@ -66,9 +66,9 @@ pressed(info, long_press_timeout, Data=#data{owner=Owner}) ->
 pressed(EventType, Msg, Data) ->
     handle_event(EventType, Msg, Data).
 
-clicked(info, {gpio, GpioNum, rising}, Data=#data{gpio_num=GpioNum}) ->
+clicked(info, {gpio_interrupt, GpioNum, rising}, Data=#data{gpio_num=GpioNum}) ->
     {next_state, pressed, button_pressed(Data)};
-clicked(info, {gpio, GpioNum, falling}, #data{gpio_num=GpioNum}) ->
+clicked(info, {gpio_interrupt, GpioNum, falling}, #data{gpio_num=GpioNum}) ->
     keep_state_and_data;
 clicked(info, click_timeout, Data=#data{owner=Owner}) ->
     Owner ! {button_clicked, Data#data.gpio_num, Data#data.click_count},
