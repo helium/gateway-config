@@ -5,19 +5,22 @@
 -define(WORKER, gateway_config).
 
 -include("gateway_config.hrl").
+-include("gateway_gatt.hrl").
+-include_lib("gatt/include/gatt.hrl").
 -include_lib("ebus/include/ebus.hrl").
-
 
 %% ebus_object
 -export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
 %% api
 -export([handle_qr_code/1, gps_info/0, gps_sat_info/0,
-         download_info/0,download_info/1]).
+         download_info/0,download_info/1,
+         pairing_enable/1, pairing_info/0]).
 
 
 -record(state, {
                 ubx_handle :: pid() | undefined,
                 button_handle :: pid() | undefined,
+                bluetooth_proxy :: pid(),
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
@@ -40,6 +43,12 @@ download_info() ->
 download_info(Value) ->
     gen_server:cast(?WORKER, {download_info, Value}).
 
+pairing_enable(Enable) ->
+    ?WORKER ! {enable_pairing, Enable}.
+
+pairing_info() ->
+    gen_server:call(?WORKER, pairing_info).
+
 %% ebus_object
 
 start_link(Bus, Args) ->
@@ -53,7 +62,11 @@ init(Args) ->
     UbxPid = init_ubx(GpsArgs),
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
-    {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
+
+    {ok, Bus} = gateway_gatt_application:bus(),
+    {ok, BluetoothProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
+
+    {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid, bluetooth_proxy=BluetoothProxy}}.
 
 
 init_ubx(Args) ->
@@ -84,6 +97,7 @@ init_button(Args) ->
             undefined
     end.
 
+
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     Position = navmap_to_position(State#state.gps_info),
     {reply,
@@ -103,6 +117,18 @@ handle_call(gps_sat_info, _From, State=#state{}) ->
     {reply, State#state.gps_sat_info, State};
 handle_call(download_info, _From, State=#state{}) ->
     {reply, State#state.download_info, State};
+handle_call(pairing_info, _From, State=#state{}) ->
+    Props = [{pairable, "Pairable"}, {pairable_timout, "Pairabletimeout"},
+             {discoverable, "Discoverable"}, {discoverable_timeout, "DiscoverableTimeout"}],
+    Result = lists:map(fun({Key, Prop}) ->
+                               case bluetooth_get_property(State#state.bluetooth_proxy, Prop) of
+                                   {ok, [Val]} -> {Key, Val};
+                                   {error, Error} ->
+                                       lager:notice("Failed to get property: ~p: ~p", [Prop, Error]),
+                                       {Key, error}
+                               end
+                       end, Props),
+    {reply, Result, State};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
@@ -152,6 +178,27 @@ handle_info({handle_qr_code, Map}, State=#state{}) ->
      }
     };
 
+handle_info({button_clicked, _, 1}, State=#state{}) ->
+    lager:info("Button clicked"),
+    handle_info({enable_pairing, true}, State);
+handle_info({enable_pairing, Enable}, State=#state{bluetooth_proxy=Proxy}) ->
+    lager:info("Enabling pairing ~p:", [Enable]),
+    SetProp = fun(Prop, Val) ->
+                      case bluetooth_set_property(Proxy, Prop, Val) of
+                          {ok, []} -> ok;
+                          {error, Error} -> throw({error, Prop, Error})
+                      end
+              end,
+
+    try
+        SetProp("Pairable", Enable),
+        SetProp("Discoverable", Enable)
+    catch
+        throw:{error, Prop, Error} ->
+            lager:error("Failed to set property ~p: ~p", [Prop, Error])
+    end,
+    {noreply, State};
+
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
@@ -166,6 +213,15 @@ terminate(_Reason, #state{ubx_handle=Handle}) ->
 %%
 %% Internal
 %%
+
+bluetooth_set_property(Proxy, Prop, Val) ->
+    ebus_proxy:call(Proxy, ?CONFIG_BLE_ADAPTER_PATH, ?DBUS_PROPERTIES("Set"),
+                    [string, string, variant], [?GATT_ADAPTER_IFACE, Prop, Val]).
+
+bluetooth_get_property(Proxy, Prop) ->
+    ebus_proxy:call(Proxy, ?CONFIG_BLE_ADAPTER_PATH, ?DBUS_PROPERTIES("Get"),
+                    [string, string], [?GATT_ADAPTER_IFACE, Prop]).
+
 
 update_gps_lock(3, State=#state{gps_lock=false}) ->
     %% If we get a lock signal lock
