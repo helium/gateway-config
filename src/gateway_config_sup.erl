@@ -34,12 +34,12 @@ init([]) ->
     {ok, B} = ebus:system(),
     %% Set up this connman to be the agent for authorization requests
     ok = connman:start_agent(),
-    UBXArgs = application:get_all_env(ubx),
+    ConfigArgs = application:get_all_env(gateway_config),
     SupFlags = {one_for_all, 3, 10},
     ChildSpecs = [
                   #{
                     id => gateway_config_worker,
-                    start => {gateway_config_worker, start_link, [B, UBXArgs]},
+                    start => {gateway_config_worker, start_link, [B, ConfigArgs]},
                     type => worker,
                     restart => permanent
                   },

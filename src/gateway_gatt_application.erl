@@ -2,6 +2,8 @@
 
 -behavior(gatt_application).
 
+-include("gateway_config.hrl").
+
 -export([bus/0, adapter_path/0, path/0, init/1, terminate/2]).
 
 -record(state, {
@@ -26,7 +28,7 @@ bus() ->
     ebus:system().
 
 adapter_path() ->
-    "/org/bluez/hci0".
+    ?CONFIG_BLE_ADAPTER_PATH.
 
 path() ->
     "/com/helium/config".
