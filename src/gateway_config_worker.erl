@@ -118,8 +118,7 @@ handle_call(gps_sat_info, _From, State=#state{}) ->
 handle_call(download_info, _From, State=#state{}) ->
     {reply, State#state.download_info, State};
 handle_call(pairing_info, _From, State=#state{}) ->
-    Props = [{pairable, "Pairable"}, {pairable_timout, "Pairabletimeout"},
-             {discoverable, "Discoverable"}, {discoverable_timeout, "DiscoverableTimeout"}],
+    Props = [{pairable, "Pairable"}, {discoverable, "Discoverable"}],
     Result = lists:map(fun({Key, Prop}) ->
                                case bluetooth_get_property(State#state.bluetooth_proxy, Prop) of
                                    {ok, [Val]} -> {Key, Val};
