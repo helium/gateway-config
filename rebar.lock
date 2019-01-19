@@ -22,7 +22,7 @@
   1},
  {<<"gatt">>,
   {git,"https://github.com/helium/ebus-gatt",
-       {ref,"884b1a6ebc922a7032fd14f46cfd730fd39e442b"}},
+       {ref,"5c5cbba6b600df268939d447b734f662ccf88c9c"}},
   0},
  {<<"getopt">>,{pkg,<<"getopt">>,<<"1.0.1">>},2},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},

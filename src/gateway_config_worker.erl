@@ -14,13 +14,15 @@
 %% api
 -export([handle_qr_code/1, gps_info/0, gps_sat_info/0,
          download_info/0,download_info/1,
-         pairing_enable/1, pairing_info/0]).
+         advertising_enable/1, advertising_info/0]).
 
+-define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
 
 -record(state, {
                 ubx_handle :: pid() | undefined,
                 button_handle :: pid() | undefined,
-                bluetooth_proxy :: pid(),
+                bluetooth_advertisement=undefined :: pid() | undefined,
+                bluetooth_timer=make_ref() :: reference(),
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
@@ -43,11 +45,11 @@ download_info() ->
 download_info(Value) ->
     gen_server:cast(?WORKER, {download_info, Value}).
 
-pairing_enable(Enable) ->
-    ?WORKER ! {enable_pairing, Enable}.
+advertising_enable(Enable) ->
+    ?WORKER ! {enable_advertising, Enable}.
 
-pairing_info() ->
-    gen_server:call(?WORKER, pairing_info).
+advertising_info() ->
+    gen_server:call(?WORKER, advertising_info).
 
 %% ebus_object
 
@@ -63,10 +65,7 @@ init(Args) ->
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
 
-    {ok, Bus} = gateway_gatt_application:bus(),
-    {ok, BluetoothProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
-
-    {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid, bluetooth_proxy=BluetoothProxy}}.
+    {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
 
 
 init_ubx(Args) ->
@@ -117,17 +116,12 @@ handle_call(gps_sat_info, _From, State=#state{}) ->
     {reply, State#state.gps_sat_info, State};
 handle_call(download_info, _From, State=#state{}) ->
     {reply, State#state.download_info, State};
-handle_call(pairing_info, _From, State=#state{}) ->
-    Props = [{pairable, "Pairable"}, {discoverable, "Discoverable"}],
-    Result = lists:map(fun({Key, Prop}) ->
-                               case bluetooth_get_property(State#state.bluetooth_proxy, Prop) of
-                                   {ok, [Val]} -> {Key, Val};
-                                   {error, Error} ->
-                                       lager:notice("Failed to get property: ~p: ~p", [Prop, Error]),
-                                       {Key, error}
-                               end
-                       end, Props),
-    {reply, Result, State};
+handle_call(advertising_info, _From, State=#state{}) ->
+    Adv = case State#state.bluetooth_advertisement of
+              undefined -> off;
+              _ -> on
+          end,
+    {reply, Adv, State};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
@@ -177,32 +171,41 @@ handle_info({handle_qr_code, Map}, State=#state{}) ->
      }
     };
 
+%% Button click
 handle_info({button_clicked, _, 1}, State=#state{}) ->
     lager:info("Button clicked"),
-    handle_info({enable_pairing, true}, State);
-handle_info({enable_pairing, Enable}, State=#state{bluetooth_proxy=Proxy}) ->
-    lager:info("Enabling pairing ~p:", [Enable]),
-    SetProp = fun(Prop, Val) ->
-                      case bluetooth_set_property(Proxy, Prop, Val) of
-                          {ok, []} -> ok;
-                          {error, Error} -> throw({error, Prop, Error})
-                      end
-              end,
+    handle_info({enable_advertising, true}, State);
 
-    try
-        SetProp("Pairable", Enable),
-        SetProp("Discoverable", Enable)
-    catch
-        throw:{error, Prop, Error} ->
-            lager:error("Failed to set property ~p: ~p", [Prop, Error])
-    end,
+%% BLE Advertising
+handle_info({enable_advertising, true}, State=#state{bluetooth_advertisement=undefined}) ->
+    lager:info("Enabling advertising"),
+    {ok, Bus} =  gateway_gatt_application:bus(),
+    {ok, AdvPid} = ble_advertisement:start_link(Bus, gateway_gatt_application:path(), 0,
+                                                gateway_ble_advertisement, []),
+    erlang:cancel_timer(State#state.bluetooth_timer),
+    Timer = erlang:send_after(?ADVERTISING_TIMEOUT, self(), timeout_advertising),
+    {noreply, State#state{bluetooth_advertisement=AdvPid, bluetooth_timer=Timer}};
+handle_info({enable_advertising, false}, State=#state{bluetooth_advertisement=Pid}) when is_pid(Pid) ->
+    lager:info("Disable advertising"),
+    ble_advertisement:stop(Pid, normal),
+    erlang:cancel_timer(State#state.bluetooth_timer),
+    {noreply, State#state{bluetooth_advertisement=undefined}};
+handle_info({enable_advertising, _}, State=#state{}) ->
+    lager:debug("Unchanged advertising state"),
     {noreply, State};
+handle_info(timeout_advertising, State=#state{})  ->
+    lager:info("Timeout advertising"),
+    handle_info({enable_advertising, false}, State);
 
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
 
-terminate(_Reason, #state{ubx_handle=Handle}) ->
+terminate(_Reason, State=#state{ubx_handle=Handle}) ->
+    case State#state.bluetooth_advertisement of
+        undefined -> ok;
+        AdvPid -> (catch ble_advertisement:stop(AdvPid, normal))
+    end,
     case is_pid(Handle) of
         true -> ubx:stop(Handle, normal);
         _ -> ok
@@ -212,14 +215,6 @@ terminate(_Reason, #state{ubx_handle=Handle}) ->
 %%
 %% Internal
 %%
-
-bluetooth_set_property(Proxy, Prop, Val) ->
-    ebus_proxy:call(Proxy, ?CONFIG_BLE_ADAPTER_PATH, ?DBUS_PROPERTIES("Set"),
-                    [string, string, variant], [?GATT_ADAPTER_IFACE, Prop, Val]).
-
-bluetooth_get_property(Proxy, Prop) ->
-    ebus_proxy:call(Proxy, ?CONFIG_BLE_ADAPTER_PATH, ?DBUS_PROPERTIES("Get"),
-                    [string, string], [?GATT_ADAPTER_IFACE, Prop]).
 
 
 update_gps_lock(3, State=#state{gps_lock=false}) ->

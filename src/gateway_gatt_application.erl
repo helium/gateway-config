@@ -4,10 +4,9 @@
 
 -include("gateway_config.hrl").
 
--export([bus/0, adapter_path/0, path/0, init/1, terminate/2]).
+-export([bus/0, adapter_path/0, path/0, init/1]).
 
 -record(state, {
-                advertisement :: pid()
                }).
 
 init([]) ->
@@ -20,9 +19,7 @@ init([]) ->
                 {gateway_gatt_service, 0, true},
                 {gatt_service_device_information, 1, true, [DeviceInfo]}
                ],
-    {ok, Bus} = bus(),
-    {ok, AdvPid} = gatt_advertisement:start_link(Bus, path(), 0, gateway_gatt_advertisement, []),
-    {ok, Services, #state{advertisement=AdvPid}}.
+    {ok, Services, #state{}}.
 
 bus() ->
     ebus:system().
@@ -32,6 +29,3 @@ adapter_path() ->
 
 path() ->
     "/com/helium/config".
-
-terminate(Reason, #state{advertisement=AdvPid}) ->
-    gatt_advertisement:stop(AdvPid, Reason).

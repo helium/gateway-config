@@ -1,6 +1,6 @@
--module(gateway_gatt_advertisement).
+-module(gateway_ble_advertisement).
 
--behavior(gatt_advertisement).
+-behavior(ble_advertisement).
 
 -export([adapter_path/0, type/0,
          init/1, services/1, include_tx_power/1, local_name/1]).

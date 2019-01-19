@@ -2,4 +2,4 @@
 if [ -t 0 ] ; then
     export CLIQUE_COLUMNS=`stty size | cut -d ' ' -f 2`
 fi
-relx_nodetool rpc gateway_config_cli_registry command pairable $@
+relx_nodetool rpc gateway_config_cli_registry command advertise $@

@@ -3,7 +3,7 @@
 -export([firmware_version/0, serial_number/0,
          gps_info/0, gps_sat_info/0,
          download_info/0, download_info/1,
-         pairing_enable/1, pairing_info/0]).
+         advertising_enable/1, advertising_info/0]).
 
 firmware_version() ->
     case file:read_file("/etc/lsb_release") of
@@ -54,8 +54,8 @@ download_info(Value) when is_boolean(Value) ->
 download_info() ->
     gateway_config_worker:download_info().
 
-pairing_enable(Enable) ->
-    gateway_config_worker:pairing_enable(Enable).
+advertising_enable(Enable) ->
+    gateway_config_worker:advertising_enable(Enable).
 
-pairing_info() ->
-    gateway_config_worker:pairing_info().
+advertising_info() ->
+    gateway_config_worker:advertising_info().
