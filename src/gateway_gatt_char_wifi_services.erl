@@ -26,7 +26,7 @@ init(Path, _) ->
     {ok, Descriptors, #state{path=Path}}.
 
 read_value(State=#state{}) ->
-    Names = [Name || {Name, _} <- limit_services(gateway_config:wifi_services())],
+    Names = [list_to_binary(Name) || {Name, _} <- limit_services(gateway_config:wifi_services())],
     {ok, jsx:encode(Names), State}.
 
 limit_services(Services) ->
