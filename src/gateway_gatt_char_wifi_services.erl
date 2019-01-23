@@ -4,11 +4,12 @@
 -behavior(gatt_characteristic).
 
 -export([init/2, uuid/1, flags/1,
-         read_value/1]).
+         read_value/1, top_services/0]).
 
 -record(state, { path :: ebus:object_path()
                }).
 
+-define(MAX_VALUE_SIZE, 500).
 
 uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_WIFI_SERVICES.
@@ -17,7 +18,6 @@ flags(_) ->
     [read].
 
 init(Path, _) ->
-    %% Currently online status is only determined by the wifi state
     Descriptors =
         [
          {gatt_descriptor_cud, 0, ["WiFi Services"]},
@@ -26,13 +26,16 @@ init(Path, _) ->
     {ok, Descriptors, #state{path=Path}}.
 
 read_value(State=#state{}) ->
-    %% Fetch name and strength of currently visible wifi services
-    Services = lists:filtermap(fun({_Path, #{"Type" := "wifi", "Name" := Name, "Strength" := Strength}}) ->
-                                       {true, {Name, Strength}};
-                                  ({_Path, _}) -> false
-                         end, connman:services()),
-    %% Sort with strongest service first
-    SortedServices = lists:reverse(lists:keysort(2, Services)),
+    {ok, top_services(), State}.
+
+top_services() ->
     %% encode only the names and send back
-    EncodedNames = jsx:encode([N || {N, _} <- SortedServices]),
-    {ok, EncodedNames, State}.
+    {_, Names} = lists:foldl(fun({Name, _}, {Size, Acc}) when length(Name) + 5 + Size =< ?MAX_VALUE_SIZE ->
+                                     %% Add 5 for escaped string dlimiters and comma separator
+                                     {Size + length(Name) + 5, [list_to_binary(Name) | Acc]};
+                                (_, Acc) ->
+                                     Acc
+                             end,
+                             %% Start with 5 for array delimiters and outer string encoding
+                             {4, []}, gateway_config:wifi_services()),
+    jsx:encode(lists:reverse(Names)).
