@@ -4,7 +4,7 @@
 -behavior(gatt_characteristic).
 
 -export([init/2, uuid/1, flags/1,
-         read_value/1, top_services/0]).
+         read_value/1, limit_services/1]).
 
 -record(state, { path :: ebus:object_path()
                }).
@@ -26,16 +26,17 @@ init(Path, _) ->
     {ok, Descriptors, #state{path=Path}}.
 
 read_value(State=#state{}) ->
-    {ok, top_services(), State}.
+    Names = [Name || {Name, _} <- limit_services(gateway_config:wifi_services())],
+    {ok, jsx:encode(Names), State}.
 
-top_services() ->
+limit_services(Services) ->
     %% encode only the names and send back
-    {_, Names} = lists:foldl(fun({Name, _}, {Size, Acc}) when length(Name) + 5 + Size =< ?MAX_VALUE_SIZE ->
-                                     %% Add 5 for escaped string dlimiters and comma separator
-                                     {Size + length(Name) + 5, [list_to_binary(Name) | Acc]};
-                                (_, Acc) ->
-                                     Acc
-                             end,
-                             %% Start with 5 for array delimiters and outer string encoding
-                             {4, []}, gateway_config:wifi_services()),
-    jsx:encode(lists:reverse(Names)).
+    {_, Result} = lists:foldl(fun(S={Name, _}, {Size, Acc}) when length(Name) + 5 + Size =< ?MAX_VALUE_SIZE ->
+                                      %% Add 5 for escaped string dlimiters and comma separator
+                                      {Size + length(Name) + 5, [S | Acc]};
+                                 (_, Acc) ->
+                                      Acc
+                              end,
+                              %% Start with 5 for array delimiters and outer string encoding
+                              {4, []},  Services),
+    lists:reverse(Result).
