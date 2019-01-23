@@ -3,6 +3,7 @@
 -export([firmware_version/0, serial_number/0,
          gps_info/0, gps_sat_info/0,
          download_info/0, download_info/1,
+         wifi_services/0,
          advertising_enable/1, advertising_info/0]).
 
 firmware_version() ->
@@ -41,6 +42,15 @@ serial_number() ->
                     string:join([io_lib:format("~2.16.0B", [X]) || X <- Addr], ":")
             end
     end.
+
+wifi_services() ->
+    %% Fetch name and strength of currently visible wifi services
+    Services = lists:filtermap(fun({_Path, #{"Type" := "wifi", "Name" := Name, "Strength" := Strength}}) ->
+                                       {true, {Name, Strength}};
+                                  ({_Path, _}) -> false
+                         end, connman:services()),
+    %% Sort by signal strength
+    lists:reverse(lists:keysort(2, Services)).
 
 gps_info() ->
     gateway_config_worker:gps_info().

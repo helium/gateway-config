@@ -39,8 +39,8 @@ advertise_usage() ->
     [["advertise"],
      ["advertise commands\n\n",
       "  status - Get the current ble advertisement status.\n"
-      "  on     - Tuen on advertising.\n"
-      "  off    - Tuen off advertising.\n"
+      "  on     - Turn on advertising.\n"
+      "  off    - Turn off advertising.\n"
      ]
     ].
 
