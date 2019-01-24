@@ -4,12 +4,13 @@
 -behavior(gatt_characteristic).
 
 -export([init/2, uuid/1, flags/1,
-         read_value/1, limit_services/1]).
+         read_value/1,
+         limit_services/1, limit_services/2]).
 
 -record(state, { path :: ebus:object_path()
                }).
 
--define(MAX_VALUE_SIZE, 500).
+-define(MAX_VALUE_SIZE, 200).
 
 uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_WIFI_SERVICES.
@@ -26,12 +27,16 @@ init(Path, _) ->
     {ok, Descriptors, #state{path=Path}}.
 
 read_value(State=#state{}) ->
-    Names = [list_to_binary(Name) || {Name, _} <- limit_services(gateway_config:wifi_services())],
+    Services = gateway_config:wifi_services(),
+    Names = [list_to_binary(Name) || {Name, _} <- limit_services(Services)],
     {ok, jsx:encode(Names), State}.
 
 limit_services(Services) ->
+    limit_services(Services, ?MAX_VALUE_SIZE).
+
+limit_services(Services, MaxSize) ->
     %% encode only the names and send back
-    {_, Result} = lists:foldl(fun(S={Name, _}, {Size, Acc}) when length(Name) + 5 + Size =< ?MAX_VALUE_SIZE ->
+    {_, Result} = lists:foldl(fun(S={Name, _}, {Size, Acc}) when length(Name) + 5 + Size =< MaxSize ->
                                       %% Add 5 for escaped string dlimiters and comma separator
                                       {Size + length(Name) + 5, [S | Acc]};
                                  (_, Acc) ->
