@@ -64,6 +64,7 @@ init(Args) ->
     UbxPid = init_ubx(GpsArgs),
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
+    sync_clocks(UbxPid),
 
     {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
 
@@ -94,6 +95,25 @@ init_button(Args) ->
         _ ->
             lager:warning("No GPIO device tree found, running in stub mode"),
             undefined
+    end.
+
+sync_clocks(UbxPid) ->
+    case calendar:universal_time() of
+        {{1970, _, _}, _} ->
+            set_system_time(UbxPid);
+        DateTime ->
+            ubx:set_time_utc(UbxPid, DateTime)
+    end.
+
+set_system_time(UbxPid) ->
+    case ubx:poll_message(UbxPid, nav_timeutc) of
+        {ok, {nav_timeutc, #{datetime := {{Year, Month, Day}, {Hour, Min, Sec}}}}} ->
+            Ymd = io_lib:format("~b-~2..0b-~2..0b", [Year, Month, Day]),
+            Hms = io_lib:format("~2..0b:~2..0b:~2..0b", [Hour, Min, Sec]),
+            lager:info("Setting date to ~p ~p", [Ymd, Hms]),
+            os:cmd("date -s '" ++ Ymd ++ " " ++ Hms ++ "'");
+        _ ->
+            lager:warning("No valid UTC datetime found")
     end.
 
 
