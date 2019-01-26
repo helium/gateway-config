@@ -100,10 +100,12 @@ init_button(Args) ->
 set_system_datetime(UbxPid) ->
     case ubx:poll_message(UbxPid, nav_timeutc) of
         {ok, {nav_timeutc, #{datetime := {{Year, Month, Day}, {Hour, Min, Sec}}}}} ->
-            Ymd = io_lib:format("~b-~2..0b-~2..0b", [Year, Month, Day]),
+            Ymd = io_lib:format("~b~2..0b~2..0b", [Year, Month, Day]),
             Hms = io_lib:format("~2..0b:~2..0b:~2..0b", [Hour, Min, Sec]),
-            io:format("date +%Y%m%d -s ~p~n", [Ymd]),
-            io:format("date +%T -s ~p", [Hms]);
+            io:format("date +%Y%m%d -s \"" ++ Ymd ++ "\""),
+            io:format("date +%T -s \"" ++ Hms ++ "\""),
+            os:cmd("date +%Y%m%d -s \"" ++ Ymd ++ "\""),
+            os:cmd("date +%T -s \"" ++ Hms ++ "\"");
         _ ->
             lager:warning("No valid UTC datetime found")
     end.
