@@ -64,6 +64,7 @@ init(Args) ->
     UbxPid = init_ubx(GpsArgs),
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
+    set_system_datetime(UbxPid),
 
     {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
 
@@ -96,6 +97,16 @@ init_button(Args) ->
             undefined
     end.
 
+set_system_datetime(UbxPid) ->
+    case ubx:poll_message(UbxPid, nav_timeutc) of
+        {ok, {nav_timeutc, #{datetime := {{Year, Month, Day}, {Hour, Min, Sec}}}}} ->
+            Ymd = io_lib:format("~b-~2..0b-~2..0b", [Year, Month, Day]),
+            Hms = io_lib:format("~2..0b:~2..0b:~2..0b", [Hour, Min, Sec]),
+            io:format("date +%Y%m%d -s ~p~n", [Ymd]),
+            io:format("date +%T -s ~p", [Hms]);
+        _ ->
+            lager:warning("No valid UTC datetime found")
+    end.
 
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     Position = navmap_to_position(State#state.gps_info),
