@@ -64,7 +64,7 @@ init(Args) ->
     UbxPid = init_ubx(GpsArgs),
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
-    set_system_datetime(UbxPid),
+    sync_clocks(UbxPid),
 
     {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
 
@@ -97,18 +97,25 @@ init_button(Args) ->
             undefined
     end.
 
-set_system_datetime(UbxPid) ->
+sync_clocks(UbxPid) ->
+    case calendar:universal_time() of
+        {{1970, _, _}, _} ->
+            set_system_time(UbxPid);
+        DateTime ->
+            ubx:set_time_utc(UbxPid, DateTime)
+    end.
+
+set_system_time(UbxPid) ->
     case ubx:poll_message(UbxPid, nav_timeutc) of
         {ok, {nav_timeutc, #{datetime := {{Year, Month, Day}, {Hour, Min, Sec}}}}} ->
-            Ymd = io_lib:format("~b~2..0b~2..0b", [Year, Month, Day]),
+            Ymd = io_lib:format("~b-~2..0b-~2..0b", [Year, Month, Day]),
             Hms = io_lib:format("~2..0b:~2..0b:~2..0b", [Hour, Min, Sec]),
-            io:format("date +%Y%m%d -s \"" ++ Ymd ++ "\""),
-            io:format("date +%T -s \"" ++ Hms ++ "\""),
-            os:cmd("date +%Y%m%d -s \"" ++ Ymd ++ "\""),
-            os:cmd("date +%T -s \"" ++ Hms ++ "\"");
+            io:format("date -s '" ++ Ymd ++ "T" ++ Hms ++ "Z'"),
+            os:cmd("date -s '" ++ Ymd ++ "T" ++ Hms ++ "Z'");
         _ ->
             lager:warning("No valid UTC datetime found")
     end.
+
 
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
     Position = navmap_to_position(State#state.gps_info),
