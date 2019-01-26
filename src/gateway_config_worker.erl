@@ -110,9 +110,8 @@ set_system_time(UbxPid) ->
         {ok, {nav_timeutc, #{datetime := {{Year, Month, Day}, {Hour, Min, Sec}}}}} ->
             Ymd = io_lib:format("~b-~2..0b-~2..0b", [Year, Month, Day]),
             Hms = io_lib:format("~2..0b:~2..0b:~2..0b", [Hour, Min, Sec]),
-            DateCmd = "date -s '" ++ Ymd ++ " " ++ Hms ++ "'",
-            lager:info(DateCmd),
-            os:cmd(DateCmd);
+            lager:debug("Setting date to ~p ~p", [Ymd, Hms]),
+            os:cmd("date -s '" ++ Ymd ++ " " ++ Hms ++ "'");
         _ ->
             lager:warning("No valid UTC datetime found")
     end.
