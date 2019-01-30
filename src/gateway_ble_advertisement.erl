@@ -22,4 +22,5 @@ include_tx_power(_) ->
     true.
 
 local_name(_) ->
-    "Helium Hotspot".
+    Serial = gateway_config:serial_number(),
+    "Helium Hotspot " ++ lists:nthtail(length(Serial) - 5, Serial).
