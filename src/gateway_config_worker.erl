@@ -64,7 +64,6 @@ init(Args) ->
     UbxPid = init_ubx(GpsArgs),
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
-    sync_clocks(UbxPid),
 
     {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
 
@@ -79,6 +78,7 @@ init_ubx(Args) ->
             ubx:disable_message(Pid, nav_posllh),
             ubx:enable_message(Pid, nav_pvt, 5),
             ubx:enable_message(Pid, nav_sat, 5),
+            sync_clocks(Pid),
             Pid;
         _ ->
             lager:warning("No UBX filename or device found, running in stub mode"),
