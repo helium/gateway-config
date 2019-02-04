@@ -86,7 +86,8 @@ format_sat_info([]) ->
 format_sat_info(SatInfos) ->
     FormatSatInfo =
         fun(#{type := Type, id := SvID, elevation := Elevation, azimuth := Azimuth,
-              quality := Quality, cno := CNO, health := Health, used := Used}) ->
+              quality := Quality, cno := CNO, health := Health, used := Used,
+              orbit := OrbitSource}) ->
                 [{type, Type},
                  {sv_id, SvID},
                  {elevation, Elevation},
@@ -94,6 +95,7 @@ format_sat_info(SatInfos) ->
                  {strength, CNO},
                  {health, Health},
                  {quality, Quality},
+                 {orbit, OrbitSource},
                  {used, Used}
                 ]
         end,
