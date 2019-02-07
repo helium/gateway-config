@@ -12,7 +12,7 @@
 %% ebus_object
 -export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
 %% api
--export([handle_qr_code/1, gps_info/0, gps_sat_info/0,
+-export([handle_qr_code/1, gps_info/0, gps_sat_info/0, gps_offline_assistance/1,
          download_info/0,download_info/1,
          advertising_enable/1, advertising_info/0]).
 
@@ -38,6 +38,9 @@ gps_info() ->
 
 gps_sat_info() ->
     gen_server:call(?WORKER, gps_sat_info).
+
+gps_offline_assistance(Path) ->
+    gen_server:call(?WORKER, {gps_offline_assistance, Path}).
 
 download_info() ->
     gen_server:call(?WORKER, download_info).
@@ -134,6 +137,8 @@ handle_call(gps_info, _From, State=#state{}) ->
     {reply, State#state.gps_info, State};
 handle_call(gps_sat_info, _From, State=#state{}) ->
     {reply, State#state.gps_sat_info, State};
+handle_call({gps_offline_assistance, Path}, _From, State=#state{}) ->
+    {reply, ubx:upload_offline_assistance(Path), State};
 handle_call(download_info, _From, State=#state{}) ->
     {reply, State#state.download_info, State};
 handle_call(advertising_info, _From, State=#state{}) ->

@@ -31,7 +31,7 @@
  {<<"stillir">>,{pkg,<<"stillir">>,<<"1.0.0">>},1},
  {<<"ubx">>,
   {git,"https://github.com/helium/erlang-ubx",
-       {ref,"d01cae51e5253a78edd7d7b414282e63933ec689"}},
+       {ref,"e846157abbf1da43e664be4711c6e789bfac6b66"}},
   0},
  {<<"worker_pool">>,{pkg,<<"worker_pool">>,<<"3.1.1">>},1}]}.
 [

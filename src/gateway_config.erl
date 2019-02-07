@@ -1,7 +1,7 @@
 -module(gateway_config).
 
 -export([firmware_version/0, serial_number/0,
-         gps_info/0, gps_sat_info/0,
+         gps_info/0, gps_sat_info/0, gps_offline_assistance/1,
          download_info/0, download_info/1,
          wifi_services/0,
          advertising_enable/1, advertising_info/0]).
@@ -57,6 +57,9 @@ gps_info() ->
 
 gps_sat_info() ->
     gateway_config_worker:gps_sat_info().
+
+gps_offline_assistance(Path) ->
+    gateway_config_worker:gps_offline_assistance(Path).
 
 download_info(Value) when is_boolean(Value) ->
     gateway_config_worker:download_info(Value).

@@ -15,7 +15,8 @@ register_all_usage() ->
                   end,
                   [
                    gps_usage(),
-                   gps_info_usage()
+                   gps_info_usage(),
+                   gps_offline_usage()
                   ]).
 
 register_all_cmds() ->
@@ -24,7 +25,8 @@ register_all_cmds() ->
                   end,
                   [
                    gps_cmd(),
-                   gps_info_cmd()
+                   gps_info_cmd(),
+                   gps_offline_cmd()
                   ]).
 
 %%
@@ -45,7 +47,7 @@ gps_cmd() ->
 
 
 %%
-%% gps ingo
+%% gps info
 %%
 
 gps_info_cmd() ->
@@ -100,3 +102,25 @@ format_sat_info(SatInfos) ->
                 ]
         end,
     clique_status:table(lists:map(FormatSatInfo, SatInfos)).
+
+
+%%
+%% gps offline
+%%
+
+gps_offline_cmd() ->
+    [
+     [["gps", "offline", '*'], [], [], fun gps_offline/3]
+    ].
+
+gps_offline_usage() ->
+    [["gps", "offline"],
+     ["gps offline </path/to/offline.ubx>\n\n",
+      "  Send AssistNow Offline data file to GPS receiver.\n\n"
+     ]
+    ].
+
+gps_offline(["gps", "offline", Path], [], []) ->
+    gateway_config:offline_assistance(Path);
+gps_offline(_, _, _) ->
+    usage.
