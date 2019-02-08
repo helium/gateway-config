@@ -25,7 +25,8 @@ init(_) ->
          {gateway_gatt_char_qr_code_status, 4, []},
          {gatt_characteristic_string, 5, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
-         {gateway_gatt_char_wifi_services, 6, []}
+         {gateway_gatt_char_wifi_services, 6, []},
+         {gateway_gatt_char_pubkey, 7, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
