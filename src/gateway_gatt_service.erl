@@ -1,5 +1,6 @@
 -module(gateway_gatt_service).
 -include("gateway_gatt.hrl").
+-include("gateway_config.hrl").
 
 -behavior(gatt_service).
 
@@ -13,6 +14,9 @@ uuid() ->
     ?UUID_GATEWAY_GATT_SERVICE.
 
 init(_) ->
+    {ok, Bus} = ebus:system(),
+    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
+
     %% TODO: Connman crashing invalidates a number of pids that are
     %% used in characteristics. We should probably monitor and
     %% restart
@@ -24,7 +28,7 @@ init(_) ->
          {gatt_characteristic_string, 3, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
          {gateway_gatt_char_wifi_services, 4, []},
-         {gateway_gatt_char_pubkey, 5, []}
+         {gateway_gatt_char_pubkey, 5, [MinerProxy]}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.

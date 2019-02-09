@@ -10,6 +10,8 @@
 -define(CONFIG_MEMBER_POSITION_LOCK, "PositionLock").
 -define(CONFIG_MEMBER_DOWNLOADING, "Downloading").
 
--define(MINER_OBJECT_PATH, "/").
+-define(MINER_APPLICATION_NAME, "com.helium.Miner").
 -define(MINER_INTERFACE, "com.helium.Miner").
 -define(MINER_OBJECT(M), ?MINER_INTERFACE ++ "." ++ M).
+-define(MINER_MEMBER_PUBKEY, "PubKey").
+-define(MINER_MEMBER_ADD_GW, "AddGateway").

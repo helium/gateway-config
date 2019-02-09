@@ -11,7 +11,7 @@
   {git,"https://github.com/helium/cuttlefish.git",
        {ref,"8672838e8f4ef61602aee6e4ff97ec9be54031dc"}},
   1},
- {<<"dogstatsd">>,{pkg,<<"dogstatsde">>,<<"0.9.2">>},0},
+ {<<"dogstatsd">>,{pkg,<<"dogstatsde">>,<<"1.0.0">>},0},
  {<<"ebus">>,
   {git,"https://github.com/helium/ebus",
        {ref,"09bba9978bfd207bbb8663b4b072a50d1fbf01aa"}},
@@ -36,7 +36,7 @@
  {<<"worker_pool">>,{pkg,<<"worker_pool">>,<<"3.1.1">>},1}]}.
 [
 {pkg_hash,[
- {<<"dogstatsd">>, <<"96B4E999EB2419D33C9D55DE06842608AF0A7FA9B23A346DF12D055AF8546CED">>},
+ {<<"dogstatsd">>, <<"8A88D121826D4ADF4722E038EEAE5357498F31C3A846ADD30B2F1C6754CC4741">>},
  {<<"getopt">>, <<"C73A9FA687B217F2FF79F68A3B637711BB1936E712B521D8CE466B29CBF7808A">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
  {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
