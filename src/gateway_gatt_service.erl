@@ -68,9 +68,6 @@ handle_info({changed_led_match, Tuples}, State=#state{}) ->
     lager:info("Got LED match attempt: ~p", [Tuples]),
     {noreply, State};
 
-handle_info({changed_qr_code, Map}, State=#state{}) ->
-    gateway_config_worker:handle_qr_code(Map),
-    {noreply, State};
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p ~p",[Msg, State]),
     {noreply, State}.
