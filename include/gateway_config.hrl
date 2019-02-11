@@ -8,17 +8,14 @@
 
 -define(CONFIG_MEMBER_POSITION, "Position").
 -define(CONFIG_MEMBER_POSITION_LOCK, "PositionLock").
--define(CONFIG_MEMBER_ADD_GW, "AddGateway").
 -define(CONFIG_MEMBER_DOWNLOADING, "Downloading").
 
--define(MINER_OBJECT_PATH, "/").
+-define(MINER_APPLICATION_NAME, "com.helium.Miner").
 -define(MINER_INTERFACE, "com.helium.Miner").
 -define(MINER_OBJECT(M), ?MINER_INTERFACE ++ "." ++ M).
+-define(MINER_MEMBER_PUBKEY, "PubKey").
+-define(MINER_MEMBER_ADD_GW, "AddGateway").
 
-%% Values for AddGatewayStatus are:
-%%   * "init" - Initial (startup) state
-%%   * "received" - Add gateway request (QRCode) received by hotspot
-%%   * "sending" - Add gateway request is being sent to wallet
-%%   * "sent" - Add gateway request successfully submitted to wallet
-%%   * "send_failed" - Failed to send add gateway request to wallet
--define(MINER_MEMBER_ADD_GW_STATUS, "AddGatewayStatus").
+-define(MINER_ERROR_BADARGS, "com.helium.Miner.Error.BadArgs").
+-define(MINER_ERROR_GW_EXISTS, "com.helium.Miner.Error.GatewayExists").
+-define(MINER_ERROR_INTERNAL, "com.helium.Miner.Error.Internal").

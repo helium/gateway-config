@@ -1,12 +1,8 @@
 -module(gateway_gatt_char_pubkey).
 -include("gateway_gatt.hrl").
+-include("gateway_config.hrl").
 
 -behavior(gatt_characteristic).
-
--define(MINER_APPLICATION_NAME, "com.helium.Miner").
--define(MINER_INTERFACE, "com.helium.Miner").
--define(MINER_OBJECT(M), ?MINER_INTERFACE ++ "." ++ M).
--define(MINER_MEMBER_PUBKEY, "PubKey").
 
 -export([init/2,
          uuid/1,
@@ -25,9 +21,7 @@ uuid(_) ->
 flags(_) ->
     [read].
 
-init(Path, _) ->
-    {ok, Bus} = ebus:system(),
-    {ok, Proxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
+init(Path, [Proxy]) ->
     Descriptors =
         [
          {gatt_descriptor_cud, 0, ["Public Key"]},
