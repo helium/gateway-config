@@ -43,8 +43,13 @@ write_value(State=#state{}, Bin) ->
                                  [string], [Owner]) of
                 {ok, [BinTxn]} ->  BinTxn;
                 {error, Error} ->
-                    lager:warning("Failed to get add gateway txn, returning error: ~p", [Error]),
-                    <<"error">>
+                    lager:warning("Failed to get add gateway txn: ~p", [Error]),
+                    case Error of
+                        ?MINER_ERROR_BADARGS -> <<"badargs">>;
+                        ?MINER_ERROR_GW_EXISTS -> <<"exists">>;
+                        ?MINER_ERROR_INTERNAL -> <<"error">>;
+                        _ -> <<"unknown">>
+                    end
             end,
     {ok, maybe_notify_value(State#state{value=Value})}.
 

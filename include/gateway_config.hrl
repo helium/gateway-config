@@ -15,3 +15,7 @@
 -define(MINER_OBJECT(M), ?MINER_INTERFACE ++ "." ++ M).
 -define(MINER_MEMBER_PUBKEY, "PubKey").
 -define(MINER_MEMBER_ADD_GW, "AddGateway").
+
+-define(MINER_ERROR_BADARGS, "com.helium.Miner.Error.BadArgs").
+-define(MINER_ERROR_GW_EXISTS, "com.helium.Miner.Error.GatewayExists").
+-define(MINER_ERROR_INTERNAL, "com.helium.Miner.Error.Internal").
