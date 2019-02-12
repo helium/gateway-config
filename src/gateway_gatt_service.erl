@@ -28,7 +28,8 @@ init(_) ->
          {gatt_characteristic_string, 3, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
          {gateway_gatt_char_wifi_services, 4, []},
-         {gateway_gatt_char_pubkey, 5, [MinerProxy]}
+         {gateway_gatt_char_pubkey, 5, [MinerProxy]},
+         {gateway_gatt_char_add_gateway, 6, [MinerProxy]}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
