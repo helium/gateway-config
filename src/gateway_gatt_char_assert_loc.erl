@@ -88,3 +88,93 @@ maybe_notify_value(State=#state{}) ->
     gatt_characteristic:value_changed(State#state.path,
                                       State#state.value),
     State.
+
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+uuid_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    ?assertEqual(?UUID_GATEWAY_GATT_CHAR_ASSERT_LOC, ?MODULE:uuid(Char)),
+    ok.
+
+flags_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    ?assertEqual([read, notify], ?MODULE:flags(Char)),
+    ok.
+
+success_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    BinTxn = <<"txn">>,
+
+    meck:new(ebus_proxy, [passthrough]),
+    meck:expect(ebus_proxy, call,
+                fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC), [uint64], [_Loc]) ->
+                        {ok, [BinTxn]}
+                end),
+    meck:new(gatt_characteristic, [passthrough]),
+    meck:expect(gatt_characteristic, value_changed,
+               fun("", <<"init">>) ->
+                       ok;
+                  ("", V) when V == BinTxn ->
+                       ok
+               end),
+
+    {ok, Char1} = ?MODULE:start_notify(Char),
+    %% Calling start_notify again has no effect
+    ?assertEqual({ok, Char1}, ?MODULE:start_notify(Char1)),
+
+    Req = #gateway_assert_loc_v1_pb{lat=10.0, lon=11.0},
+    ReqBin = gateway_gatt_char_assert_loc_pb:encode_msg(Req),
+    {ok, Char2} = ?MODULE:write_value(Char1, ReqBin),
+    ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2)),
+
+    {ok, Char3} = ?MODULE:stop_notify(Char2),
+    ?assertEqual({ok, Char3}, ?MODULE:stop_notify(Char3)),
+
+    ?assert(meck:validate(ebus_proxy)),
+    meck:unload(ebus_proxy),
+    ?assert(meck:validate(gatt_characteristic)),
+    meck:unload(gatt_characteristic),
+
+    ok.
+
+error_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+
+    meck:new(ebus_proxy, [passthrough]),
+    meck:expect(ebus_proxy, call,
+                fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC), [uint64], [_]) ->
+                        ErrorName = get({?MODULE, meck_error}),
+                        {error, ErrorName}
+                end),
+
+    Req = #gateway_assert_loc_v1_pb{lat=10.0, lon=11.0},
+    ReqBin = gateway_gatt_char_assert_loc_pb:encode_msg(Req),
+
+    Char2 = lists:foldl(fun({ErrorName, Value}, State) ->
+                                put({?MODULE, meck_error}, ErrorName),
+                                {ok, NewState} = ?MODULE:write_value(State, ReqBin),
+                                ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState)),
+                                NewState
+                        end, Char,
+                        [
+                         {?MINER_ERROR_BADARGS, <<"badargs">>},
+                         {?MINER_ERROR_INTERNAL, <<"error">>},
+                         {?MINER_ERROR_GW_NOT_FOUND, <<"gw_not_found">>},
+                         {?MINER_ERROR_ASSERT_LOC_PARENT, <<"assert_loc_parent">>},
+                         {?MINER_ERROR_ASSERT_LOC_EXISTS, <<"assert_loc_exists">>},
+                         {"com.unknown.Error", <<"unknown">>}
+                        ]),
+
+    InvalidReqBin = <<"invalid">>,
+    {ok, Char3} = ?MODULE:write_value(Char2, InvalidReqBin),
+    ?assertEqual({ok, <<"badargs">>, Char3}, ?MODULE:read_value(Char3)),
+
+    ?assert(meck:validate(ebus_proxy)),
+    meck:unload(ebus_proxy),
+
+    ok.
+
+
+-endif.

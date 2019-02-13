@@ -115,6 +115,7 @@ success_test() ->
     {ok, Char1} = ?MODULE:start_notify(Char),
     %% Calling start_notify again has no effect
     ?assertEqual({ok, Char1}, ?MODULE:start_notify(Char1)),
+
     {ok, Char2} = ?MODULE:write_value(Char1, OwnerBin),
     ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2)),
 
