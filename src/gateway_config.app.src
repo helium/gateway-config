@@ -7,6 +7,7 @@
    [kernel,
     stdlib,
     lager,
+    h3,
     ebus,
     gatt,
     connman,
