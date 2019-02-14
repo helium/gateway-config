@@ -27,7 +27,7 @@ uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_ASSERT_LOC.
 
 flags(_) ->
-    [read, notify].
+    [read, write, notify].
 
 init(Path, [Proxy]) ->
     Descriptors =
@@ -100,7 +100,7 @@ uuid_test() ->
 
 flags_test() ->
     {ok, _, Char} = ?MODULE:init("", [proxy]),
-    ?assertEqual([read, notify], ?MODULE:flags(Char)),
+    ?assertEqual([read, write, notify], ?MODULE:flags(Char)),
     ok.
 
 success_test() ->
