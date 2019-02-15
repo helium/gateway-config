@@ -137,8 +137,8 @@ handle_call(gps_info, _From, State=#state{}) ->
     {reply, State#state.gps_info, State};
 handle_call(gps_sat_info, _From, State=#state{}) ->
     {reply, State#state.gps_sat_info, State};
-handle_call({gps_offline_assistance, Path}, _From, State=#state{}) ->
-    {reply, ubx:upload_offline_assistance(Path), State};
+handle_call({gps_offline_assistance, Path}, _From, State=#state{ubx_handle=Handle}) ->
+    {reply, ubx:upload_offline_assistance(Handle, Path), State};
 handle_call(download_info, _From, State=#state{}) ->
     {reply, State#state.download_info, State};
 handle_call(advertising_info, _From, State=#state{}) ->
