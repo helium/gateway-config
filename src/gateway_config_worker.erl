@@ -12,7 +12,7 @@
 %% ebus_object
 -export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
 %% api
--export([handle_qr_code/1, gps_info/0, gps_sat_info/0, gps_offline_assistance/1,
+-export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1,
          download_info/0,download_info/1,
          advertising_enable/1, advertising_info/0]).
 
@@ -28,10 +28,6 @@
                 gps_sat_info=[] :: [ubx:nav_sat()],
                 download_info=false :: boolean()
                }).
-
-%% API
-handle_qr_code(Map) ->
-    ?WORKER ! {handle_qr_code, Map}.
 
 gps_info() ->
     gen_server:call(?WORKER, gps_info).
@@ -188,13 +184,6 @@ handle_info(signal_position, State=#state{}) ->
 handle_info({packet, Packet}, State=#state{}) ->
     lager:notice("Ignoring unrequested ubx packet: ~p", [Packet]),
     {noreply, State};
-handle_info({handle_qr_code, Map}, State=#state{}) ->
-    lager:info("Signaling Add Gateway with: ~p", [Map]),
-    {noreply, State,
-     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_ADD_GW,
-      [{dict, string, string}], [Map]
-     }
-    };
 
 %% Button click
 handle_info({button_clicked, _, 1}, State=#state{}) ->

@@ -1,5 +1,6 @@
 -module(gateway_gatt_service).
 -include("gateway_gatt.hrl").
+-include("gateway_config.hrl").
 
 -behavior(gatt_service).
 
@@ -13,6 +14,9 @@ uuid() ->
     ?UUID_GATEWAY_GATT_SERVICE.
 
 init(_) ->
+    {ok, Bus} = ebus:system(),
+    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
+
     %% TODO: Connman crashing invalidates a number of pids that are
     %% used in characteristics. We should probably monitor and
     %% restart
@@ -21,11 +25,12 @@ init(_) ->
          {gateway_gatt_char_wifi_status, 0, []},
          {gateway_gatt_char_wifi_ssid, 1, []},
          {gateway_gatt_char_wifi_pass, 2, []},
-         {gateway_gatt_char_qr_code, 3, []},
-         {gateway_gatt_char_qr_code_status, 4, []},
-         {gatt_characteristic_string, 5, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
+         {gatt_characteristic_string, 3, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
-         {gateway_gatt_char_wifi_services, 6, []}
+         {gateway_gatt_char_wifi_services, 4, []},
+         {gateway_gatt_char_pubkey, 5, [MinerProxy]},
+         {gateway_gatt_char_add_gateway, 6, [MinerProxy]},
+         {gateway_gatt_char_assert_loc, 7, [MinerProxy]}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -69,9 +74,6 @@ handle_info({changed_led_match, Tuples}, State=#state{}) ->
     lager:info("Got LED match attempt: ~p", [Tuples]),
     {noreply, State};
 
-handle_info({changed_qr_code, Map}, State=#state{}) ->
-    gateway_config_worker:handle_qr_code(Map),
-    {noreply, State};
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p ~p",[Msg, State]),
     {noreply, State}.
