@@ -121,6 +121,6 @@ gps_offline_usage() ->
     ].
 
 gps_offline(["gps", "offline", Path], [], []) ->
-    gateway_config:offline_assistance(Path);
+    gateway_config:gps_offline_assistance(Path);
 gps_offline(_, _, _) ->
     usage.
