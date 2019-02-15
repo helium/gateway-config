@@ -30,7 +30,8 @@ init(_) ->
          {gateway_gatt_char_wifi_services, 4, []},
          {gateway_gatt_char_pubkey, 5, [MinerProxy]},
          {gateway_gatt_char_add_gateway, 6, [MinerProxy]},
-         {gateway_gatt_char_assert_loc, 7, [MinerProxy]}
+         {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
+         {gateway_gatt_char_lights, 8, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -70,8 +71,8 @@ handle_info({changed_wifi_pass, Value}, State=#state{}) ->
 handle_info({connect_result, _Tech, Result}, State=#state{}) ->
     lager:info("Connect result ~p", [Result]),
     {noreply, State};
-handle_info({changed_led_match, Tuples}, State=#state{}) ->
-    lager:info("Got LED match attempt: ~p", [Tuples]),
+handle_info({lights, Enable}, State=#state{}) ->
+    gateway_config:lights_enable(Enable),
     {noreply, State};
 
 handle_info(Msg, State) ->
