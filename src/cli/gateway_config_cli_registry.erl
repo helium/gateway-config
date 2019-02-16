@@ -4,6 +4,7 @@
                       gateway_config_cli_gps,
                       gateway_config_cli_download,
                       gateway_config_cli_advertise,
+                      gateway_config_cli_lights,
                       gateway_config_cli_wifi
                      ]).
 

@@ -14,11 +14,13 @@
 %% api
 -export([gps_info/0, gps_sat_info/0,
          download_info/0,download_info/1,
-         advertising_enable/1, advertising_info/0]).
+         advertising_enable/1, advertising_info/0,
+         lights_enable/1, lights_info/0]).
 
 -define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
 
 -record(state, {
+                config_file :: string(),
                 ubx_handle :: pid() | undefined,
                 button_handle :: pid() | undefined,
                 bluetooth_advertisement=undefined :: pid() | undefined,
@@ -26,7 +28,8 @@
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
-                download_info=false :: boolean()
+                download_info=false :: boolean(),
+                lights=true :: boolean()
                }).
 
 gps_info() ->
@@ -47,6 +50,12 @@ advertising_enable(Enable) ->
 advertising_info() ->
     gen_server:call(?WORKER, advertising_info).
 
+lights_enable(Enable) ->
+    ?WORKER ! {enable_lights, Enable}.
+
+lights_info() ->
+    gen_server:call(?WORKER, lights_info).
+
 %% ebus_object
 
 start_link(Bus, Args) ->
@@ -61,7 +70,14 @@ init(Args) ->
     ButtonArgs = proplists:get_value(button, Args, []),
     ButtonPid = init_button(ButtonArgs),
 
-    {ok, #state{ubx_handle=UbxPid, button_handle=ButtonPid}}.
+    ConfigFile = filename:join([proplists:get_value(base_dir, Args, "data"), "config.json"]),
+    ConfigData = read_config_file(ConfigFile),
+    Lights = proplists:get_value(lights, ConfigData, true),
+
+    {ok, #state{ubx_handle=UbxPid,
+                button_handle=ButtonPid,
+                lights=Lights,
+                config_file=ConfigFile}}.
 
 
 init_ubx(Args) ->
@@ -120,6 +136,8 @@ handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
      [State#state.gps_lock, Position], State};
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_DOWNLOADING), _Msg, State=#state{}) ->
     {reply, [bool], [State#state.download_info], State};
+handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_LIGHTS), _Msg, State=#state{}) ->
+    {reply, [bool], [State#state.lights], State};
 
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
@@ -138,6 +156,12 @@ handle_call(advertising_info, _From, State=#state{}) ->
               _ -> on
           end,
     {reply, Adv, State};
+handle_call(lights_info, _From, State=#state{}) ->
+    Lights = case State#state.lights of
+                 true -> on;
+                 false -> off
+             end,
+    {reply, Lights, State};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
@@ -206,6 +230,18 @@ handle_info(timeout_advertising, State=#state{})  ->
     lager:info("Timeout advertising"),
     handle_info({enable_advertising, false}, State);
 
+
+%% Lights
+handle_info({enable_lights, Enable}, State=#state{lights=Enable}) ->
+    %% Ignore if request already reflects current state
+    {noreply, State};
+handle_info({enable_lights, Enable}, State=#state{}) ->
+    NewState = State#state{lights=Enable},
+    write_config_file(NewState),
+    {noreply, NewState,
+     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_LIGHTS,
+      [bool], [Enable]}};
+
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
@@ -225,6 +261,21 @@ terminate(_Reason, State=#state{ubx_handle=Handle}) ->
 %% Internal
 %%
 
+
+-spec read_config_file(string()) -> [tuple()].
+read_config_file(FileName) ->
+    case file:read_file(FileName) of
+        {ok, Bin} -> jsx:decode(Bin);
+        _ -> []
+    end.
+
+-spec write_config_file(#state{}) -> ok | {error, term()}.
+write_config_file(State=#state{config_file=FileName}) ->
+    Config = [
+              {lights, State#state.lights}
+             ],
+    Bin = jsx:encode(Config),
+    file:write_file(FileName, Bin).
 
 update_gps_lock(3, State=#state{gps_lock=false}) ->
     %% If we get a lock signal lock
