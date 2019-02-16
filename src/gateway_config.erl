@@ -4,7 +4,8 @@
          gps_info/0, gps_sat_info/0, gps_offline_assistance/1,
          download_info/0, download_info/1,
          wifi_services/0,
-         advertising_enable/1, advertising_info/0]).
+         advertising_enable/1, advertising_info/0,
+         lights_enable/1, lights_info/0]).
 
 firmware_version() ->
     case file:read_file("/etc/lsb_release") of
@@ -72,3 +73,9 @@ advertising_enable(Enable) ->
 
 advertising_info() ->
     gateway_config_worker:advertising_info().
+
+lights_enable(Enable) ->
+    gateway_config_worker:lights_enable(Enable).
+
+lights_info() ->
+    gateway_config_worker:lights_info().
