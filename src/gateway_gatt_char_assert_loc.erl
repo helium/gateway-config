@@ -41,25 +41,23 @@ read_value(State=#state{}) ->
     {ok, State#state.value, State}.
 
 write_value(State=#state{}, Bin) ->
-    case (catch gateway_gatt_char_assert_loc_pb:decode_msg(Bin, gateway_assert_loc_v1_pb)) of
-        #gateway_assert_loc_v1_pb{lat=Lat, lon=Lon} ->
+    try gateway_gatt_char_assert_loc_pb:decode_msg(Bin, gateway_assert_loc_v1_pb) of
+        #gateway_assert_loc_v1_pb{lat=Lat, lon=Lon, owner=Owner, nonce=Nonce, fee=Fee} ->
             H3Index = h3:from_geo({Lat, Lon}, ?H3_LATLON_RESOLUTION),
             Value = case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
-                                         [uint64], [H3Index]) of
+                                         [uint64, string, uint64, uint64],
+                                         [H3Index, Owner, Nonce, Fee]) of
                         {ok, [BinTxn]} ->  BinTxn;
                         {error, Error} ->
                             lager:warning("Failed to get assert_loc txn: ~p", [Error]),
                             case Error of
                                 ?MINER_ERROR_BADARGS -> <<"badargs">>;
                                 ?MINER_ERROR_INTERNAL -> <<"error">>;
-                                ?MINER_ERROR_GW_NOT_FOUND -> <<"gw_not_found">>;
-                                ?MINER_ERROR_ASSERT_LOC_PARENT -> <<"assert_loc_parent">>;
-                                ?MINER_ERROR_ASSERT_LOC_EXISTS -> <<"assert_loc_exists">>;
                                 _ -> <<"unknown">>
                             end
                     end,
-            {ok, maybe_notify_value(State#state{value=Value})};
-        {'EXIT', Why} ->
+            {ok, maybe_notify_value(State#state{value=Value})}
+    catch _What:Why ->
             lager:warning("Failed to decode assert_loc request: ~p", Why),
             {ok, maybe_notify_value(State#state{value= <<"badargs">>})}
     end.
