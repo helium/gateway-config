@@ -42,7 +42,7 @@ write_value(State=#state{}, Bin) ->
                 <<"off">> -> <<"off">>;
                 _ -> State#state.value
             end,
-    self ! {lights, Value == <<"on">>},
+    self() ! {lights, Value == <<"on">>},
     {ok, maybe_notify_value(State#state{value=Value})}.
 
 start_notify(State=#state{notify=true}) ->
@@ -75,17 +75,17 @@ maybe_notify_value(State=#state{}) ->
 -include_lib("eunit/include/eunit.hrl").
 
 uuid_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_LIGHTS, ?MODULE:uuid(Char)),
     ok.
 
 flags_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual([read, write, notify], ?MODULE:flags(Char)),
     ok.
 
 off_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
 
     meck:new(gatt_characteristic, [passthrough]),
     meck:expect(gatt_characteristic, value_changed,
