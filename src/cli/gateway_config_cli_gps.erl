@@ -16,7 +16,8 @@ register_all_usage() ->
                   [
                    gps_usage(),
                    gps_info_usage(),
-                   gps_offline_usage()
+                   gps_offline_usage(),
+                   gps_online_usage()
                   ]).
 
 register_all_cmds() ->
@@ -26,7 +27,8 @@ register_all_cmds() ->
                   [
                    gps_cmd(),
                    gps_info_cmd(),
-                   gps_offline_cmd()
+                   gps_offline_cmd(),
+                   gps_online_cmd()
                   ]).
 
 %%
@@ -123,4 +125,26 @@ gps_offline_usage() ->
 gps_offline(["gps", "offline", Path], [], []) ->
     gateway_config:gps_offline_assistance(Path);
 gps_offline(_, _, _) ->
+    usage.
+
+
+%%
+%% gps online
+%%
+
+gps_online_cmd() ->
+    [
+     [["gps", "online", '*'], [], [], fun gps_online/3]
+    ].
+
+gps_online_usage() ->
+    [["gps", "online"],
+     ["gps online </path/to/online.ubx>\n\n",
+      "  Send AssistNow Online data file to GPS receiver.\n\n"
+     ]
+    ].
+
+gps_online(["gps", "online", Path], [], []) ->
+    gateway_config:gps_online_assistance(Path);
+gps_online(_, _, _) ->
     usage.
