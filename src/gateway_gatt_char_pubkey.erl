@@ -37,3 +37,48 @@ read_value(State=#state{}) ->
                     <<"unknown">>
             end,
     {ok, Value, State}.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+uuid_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    ?assertEqual(?UUID_GATEWAY_GATT_CHAR_PUBKEY, ?MODULE:uuid(Char)),
+    ok.
+
+flags_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    ?assertEqual([read], ?MODULE:flags(Char)),
+    ok.
+
+read_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+
+    PubKey = "pubkey",
+    meck:expect(ebus_proxy, call,
+                fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_PUBKEY)) ->
+                        {ok, [PubKey]}
+                end),
+    ?assertEqual({ok, list_to_binary(PubKey), Char}, ?MODULE:read_value(Char)),
+
+   ?assert(meck:validate(ebus_proxy)),
+    meck:unload(ebus_proxy),
+
+    ok.
+
+error_test() ->
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+
+    meck:expect(ebus_proxy, call,
+                fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_PUBKEY)) ->
+                        {error, bad_stuff}
+                end),
+    ?assertEqual({ok, <<"unknown">>, Char}, ?MODULE:read_value(Char)),
+
+   ?assert(meck:validate(ebus_proxy)),
+    meck:unload(ebus_proxy),
+
+    ok.
+
+
+-endif.
