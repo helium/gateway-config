@@ -1,6 +1,7 @@
 -module(gateway_gatt_char_add_gateway).
 -include("gateway_gatt.hrl").
 -include("gateway_config.hrl").
+-include("pb/gateway_gatt_char_add_gateway_pb.hrl").
 
 -behavior(gatt_characteristic).
 
@@ -38,20 +39,25 @@ read_value(State=#state{}) ->
     {ok, State#state.value, State}.
 
 write_value(State=#state{}, Bin) ->
-    Owner = binary_to_list(Bin),
-    Value = case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-                                 [string], [Owner]) of
-                {ok, [BinTxn]} ->  BinTxn;
-                {error, Error} ->
-                    lager:warning("Failed to get add gateway txn: ~p", [Error]),
-                    case Error of
-                        ?MINER_ERROR_BADARGS -> <<"badargs">>;
-                        ?MINER_ERROR_GW_EXISTS -> <<"exists">>;
-                        ?MINER_ERROR_INTERNAL -> <<"error">>;
-                        _ -> <<"unknown">>
-                    end
-            end,
-    {ok, maybe_notify_value(State#state{value=Value})}.
+    try gateway_gatt_char_add_gateway_pb:decode_msg(Bin, gateway_add_gateway_v1_pb) of
+        #gateway_add_gateway_v1_pb{owner=OwnerB58, fee=Fee, amount=Amount} ->
+            lager:info("Requesting add_gateway txn for owner: ~p" , [OwnerB58]),
+            Value = case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
+                                         [string, uint64, uint64], [OwnerB58, Fee, Amount]) of
+                        {ok, [BinTxn]} ->  BinTxn;
+                        {error, Error} ->
+                            lager:warning("Failed to get add_gateway txn: ~p", [Error]),
+                            case Error of
+                                ?MINER_ERROR_BADARGS -> <<"badargs">>;
+                                ?MINER_ERROR_INTERNAL -> <<"error">>;
+                                _ -> <<"unknown">>
+                            end
+                    end,
+            {ok, maybe_notify_value(State#state{value=Value})}
+    catch _What:Why ->
+            lager:warning("Failed to decode add_gateway request: ~p", Why),
+            {ok, maybe_notify_value(State#state{value= <<"badargs">>})}
+    end.
 
 start_notify(State=#state{notify=true}) ->
     %% Already notifying
