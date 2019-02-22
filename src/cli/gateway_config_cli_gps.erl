@@ -39,6 +39,8 @@ gps_usage() ->
     [["gps"],
      ["gps commands\n\n",
       "  info - Get information about the current GPS state.\n"
+      "  offline <path> - Load AssistNow Offline data file.\n"
+      "  online <path> - Load AssistNow Online data file.\n"
      ]
     ].
 
