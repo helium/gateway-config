@@ -111,7 +111,7 @@ success_test() ->
     meck:new(ebus_proxy, [passthrough]),
     meck:expect(ebus_proxy, call,
                 fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
-                    [uint64, string, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Fee]) ->
+                    [string, string, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Fee]) ->
                         {ok, [BinTxn]}
                 end),
     meck:new(gatt_characteristic, [passthrough]),
@@ -147,7 +147,7 @@ error_test() ->
     meck:new(ebus_proxy, [passthrough]),
     meck:expect(ebus_proxy, call,
                 fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
-                    [uint64, string, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Fee]) ->
+                    [string, string, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Fee]) ->
                         ErrorName = get({?MODULE, meck_error}),
                         {error, ErrorName}
                 end),
