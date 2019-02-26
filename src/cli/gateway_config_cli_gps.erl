@@ -15,7 +15,9 @@ register_all_usage() ->
                   end,
                   [
                    gps_usage(),
-                   gps_info_usage()
+                   gps_info_usage(),
+                   gps_offline_usage(),
+                   gps_online_usage()
                   ]).
 
 register_all_cmds() ->
@@ -24,7 +26,9 @@ register_all_cmds() ->
                   end,
                   [
                    gps_cmd(),
-                   gps_info_cmd()
+                   gps_info_cmd(),
+                   gps_offline_cmd(),
+                   gps_online_cmd()
                   ]).
 
 %%
@@ -35,6 +39,8 @@ gps_usage() ->
     [["gps"],
      ["gps commands\n\n",
       "  info - Get information about the current GPS state.\n"
+      "  offline <path> - Load AssistNow Offline data file.\n"
+      "  online <path> - Load AssistNow Online data file.\n"
      ]
     ].
 
@@ -45,7 +51,7 @@ gps_cmd() ->
 
 
 %%
-%% gps ingo
+%% gps info
 %%
 
 gps_info_cmd() ->
@@ -86,7 +92,8 @@ format_sat_info([]) ->
 format_sat_info(SatInfos) ->
     FormatSatInfo =
         fun(#{type := Type, id := SvID, elevation := Elevation, azimuth := Azimuth,
-              quality := Quality, cno := CNO, health := Health, used := Used}) ->
+              quality := Quality, cno := CNO, health := Health, used := Used,
+              orbit := OrbitSource}) ->
                 [{type, Type},
                  {sv_id, SvID},
                  {elevation, Elevation},
@@ -94,7 +101,62 @@ format_sat_info(SatInfos) ->
                  {strength, CNO},
                  {health, Health},
                  {quality, Quality},
+                 {orbit, OrbitSource},
                  {used, Used}
                 ]
         end,
     clique_status:table(lists:map(FormatSatInfo, SatInfos)).
+
+
+%%
+%% gps offline
+%%
+
+gps_offline_cmd() ->
+    [
+     [["gps", "offline", '*'], [], [], fun gps_offline/3]
+    ].
+
+gps_offline_usage() ->
+    [["gps", "offline"],
+     ["gps offline </path/to/offline.ubx>\n\n",
+      "  Send AssistNow Offline data file to GPS receiver.\n\n"
+     ]
+    ].
+
+gps_offline(["gps", "offline", Path], [], []) ->
+    case gateway_config:gps_offline_assistance(Path) of
+        ok ->
+            [clique_status:text("Done sending AssistNow Offline data")];
+        {error, Reason} ->
+            [clique_status:text(io_lib:format("Failed to read AssistNow Offline data: ~p", [Reason]))]
+    end;
+gps_offline(_, _, _) ->
+    usage.
+
+
+%%
+%% gps online
+%%
+
+gps_online_cmd() ->
+    [
+     [["gps", "online", '*'], [], [], fun gps_online/3]
+    ].
+
+gps_online_usage() ->
+    [["gps", "online"],
+     ["gps online </path/to/online.ubx>\n\n",
+      "  Send AssistNow Online data file to GPS receiver.\n\n"
+     ]
+    ].
+
+gps_online(["gps", "online", Path], [], []) ->
+    case gateway_config:gps_online_assistance(Path) of
+        ok ->
+            [clique_status:text("Done sending AssistNow Online data")];
+        {error, Reason} ->
+            [clique_status:text(io_lib:format("Failed to read AssistNow Online data: ~p", [Reason]))]
+    end;
+gps_online(_, _, _) ->
+    usage.
