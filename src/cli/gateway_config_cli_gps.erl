@@ -128,8 +128,8 @@ gps_offline(["gps", "offline", Path], [], []) ->
     case gateway_config:gps_offline_assistance(Path) of
         ok ->
             [clique_status:text("Done sending AssistNow Offline data")];
-        {error, Reason} ->
-            [clique_status:text("Failed to send AssistNow Offline data; Reason: ~p", [Reason])]
+        {error, _Reason} ->
+            [clique_status:text("Failed to read AssistNow Offline data")]
     end;
 gps_offline(_, _, _) ->
     usage.
@@ -155,8 +155,8 @@ gps_online(["gps", "online", Path], [], []) ->
     case gateway_config:gps_online_assistance(Path) of
         ok ->
             [clique_status:text("Done sending AssistNow Online data")];
-        {error, Reason} ->
-            [clique_status:text("Failed to send AssistNow Online data; Reason: ~p", [Reason])]
+        {error, _Reason} ->
+            [clique_status:text("Failed to read AssistNow Online data")]
     end;
 gps_online(_, _, _) ->
     usage.
