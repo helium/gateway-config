@@ -129,7 +129,7 @@ gps_offline(["gps", "offline", Path], [], []) ->
         ok ->
             [clique_status:text("Done sending AssistNow Offline data")];
         {error, Reason} ->
-            [clique_status:test("Failed to send AssistNow Offline data; Reason: ~p", [Reason])]
+            [clique_status:text("Failed to send AssistNow Offline data; Reason: ~p", [Reason])]
     end;
 gps_offline(_, _, _) ->
     usage.
@@ -156,7 +156,7 @@ gps_online(["gps", "online", Path], [], []) ->
         ok ->
             [clique_status:text("Done sending AssistNow Online data")];
         {error, Reason} ->
-            [clique_status:test("Failed to send AssistNow Online data; Reason: ~p", [Reason])]
+            [clique_status:text("Failed to send AssistNow Online data; Reason: ~p", [Reason])]
     end;
 gps_online(_, _, _) ->
     usage.
