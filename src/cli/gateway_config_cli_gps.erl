@@ -125,7 +125,8 @@ gps_offline_usage() ->
     ].
 
 gps_offline(["gps", "offline", Path], [], []) ->
-    gateway_config:gps_offline_assistance(Path);
+    gateway_config:gps_offline_assistance(Path),
+    clique_status:text("Done sending AssistNow Offline data");
 gps_offline(_, _, _) ->
     usage.
 
@@ -147,6 +148,7 @@ gps_online_usage() ->
     ].
 
 gps_online(["gps", "online", Path], [], []) ->
-    gateway_config:gps_online_assistance(Path);
+    gateway_config:gps_online_assistance(Path),
+    clique_status:text("Done sending AssistNow Online data");
 gps_online(_, _, _) ->
     usage.
