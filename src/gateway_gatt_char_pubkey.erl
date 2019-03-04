@@ -32,6 +32,9 @@ init(Path, [Proxy]) ->
 read_value(State=#state{}) ->
     Value = case ebus_proxy:call(State#state.proxy, ?MINER_OBJECT(?MINER_MEMBER_PUBKEY)) of
                 {ok, [PubKeyB58]} ->  list_to_binary(PubKeyB58);
+                {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
+                    lager:warning("Miner not ready to get public key, returning waiting"),
+                    <<"wait">>;
                 {error, Error} ->
                     lager:warning("Failed to get public key, returning unkown: ~p", [Error]),
                     <<"unknown">>
@@ -71,9 +74,19 @@ error_test() ->
 
     meck:expect(ebus_proxy, call,
                 fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_PUBKEY)) ->
-                        {error, bad_stuff}
+                        ErrorName = get({?MODULE, meck_error}),
+                        {error, ErrorName}
                 end),
-    ?assertEqual({ok, <<"unknown">>, Char}, ?MODULE:read_value(Char)),
+
+   lists:foldl(fun({ErrorName, Value}, State) ->
+                       put({?MODULE, meck_error}, ErrorName),
+                       ?assertEqual({ok, Value, State}, ?MODULE:read_value(State)),
+                       State
+               end, Char,
+               [
+                {"org.freedesktop.DBus.Error.ServiceUnknown", <<"wait">>},
+                {"com.unknown.Error", <<"unknown">>}
+               ]),
 
    ?assert(meck:validate(ebus_proxy)),
     meck:unload(ebus_proxy),
