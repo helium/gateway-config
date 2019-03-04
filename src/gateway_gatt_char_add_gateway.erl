@@ -48,6 +48,7 @@ write_value(State=#state{}, Bin) ->
                         {error, Error} ->
                             lager:warning("Failed to get add_gateway txn: ~p", [Error]),
                             case Error of
+                                "org.freedesktop.DBus.Error.ServiceUnknown" -> <<"wait">>;
                                 ?MINER_ERROR_BADARGS -> <<"badargs">>;
                                 ?MINER_ERROR_INTERNAL -> <<"error">>;
                                 _ -> <<"unknown">>
@@ -162,7 +163,8 @@ error_test() ->
                  [
                   {?MINER_ERROR_BADARGS, <<"badargs">>},
                   {?MINER_ERROR_INTERNAL, <<"error">>},
-                  {"com.unknown.Error", <<"unknown">>}
+                  {"org.freedesktop.DBus.Error.ServiceUnknown", <<"wait">>},
+                 {"com.unknown.Error", <<"unknown">>}
                  ]),
 
     InvalidReqBin = <<"invalid">>,
