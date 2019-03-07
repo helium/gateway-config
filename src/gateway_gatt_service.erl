@@ -51,8 +51,10 @@ handle_info({changed_wifi_pass, Value}=Msg, State=#state{}) ->
     %% are wifi and online or ready and attempt to disconnect them
     %% before we try to connect to the SSID stored in the state.
     OnlineWifiPaths =
-        lists:filtermap(fun({Path, M}) ->
-                                lager:info("Checking wifi ~p", [Path]),
+        %% Find all services that are online or ready and disconnect
+        %% from them. There's likely only ever one of these but this
+        %% is how we find the target service if we're connected.
+        lists:filtermap(fun({_Path, M}) ->
                                 case maps:get("Type", M, false) == "wifi" andalso
                                     lists:member(maps:get("State", M, false), ["online", "ready"]) of
                                     true -> {true, maps:get("Name", M)};
