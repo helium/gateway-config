@@ -32,12 +32,11 @@ start_link() ->
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
     {ok, B} = ebus:system(),
-    ConfigArgs = application:get_all_env(gateway_config),
     SupFlags = {one_for_all, 3, 10},
     ChildSpecs = [
                   #{
                     id => gateway_config_worker,
-                    start => {gateway_config_worker, start_link, [B, ConfigArgs]},
+                    start => {gateway_config_worker, start_link, [B]},
                     type => worker,
                     restart => permanent
                   },

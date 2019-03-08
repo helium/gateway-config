@@ -3,6 +3,7 @@
 -behavior(ebus_object).
 
 -define(WORKER, gateway_config).
+-define(APPLICATION, gateway_config).
 
 -include("gateway_config.hrl").
 -include("gateway_gatt.hrl").
@@ -10,7 +11,7 @@
 -include_lib("ebus/include/ebus.hrl").
 
 %% ebus_object
--export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
+-export([start_link/1, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
 %% api
 -export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
@@ -64,19 +65,19 @@ lights_info() ->
 
 %% ebus_object
 
-start_link(Bus, Args) ->
+start_link(Bus) ->
     ok = ebus:request_name(Bus, ?CONFIG_APPLICATION_NAME),
-    ebus_object:start_link(Bus, ?CONFIG_OBJECT_PATH, ?MODULE, Args, []).
+    ebus_object:start_link(Bus, ?CONFIG_OBJECT_PATH, ?MODULE, [], []).
 
 
-init(Args) ->
+init(_) ->
     erlang:register(?WORKER, self()),
-    GpsArgs = proplists:get_value(gps, Args, []),
+    {ok,GpsArgs} = application:get_env(gps),
     UbxPid = init_ubx(GpsArgs),
-    ButtonArgs = proplists:get_value(button, Args, []),
+    {ok, ButtonArgs} = application:get_env(button),
     ButtonPid = init_button(ButtonArgs),
 
-    LightsOffFile = proplists:get_value(lights_off, Args),
+    {ok, LightsOffFile} = application:get_env(lights_off),
     LightsEnable = not filelib:is_regular(LightsOffFile),
 
     {ok, #state{ubx_handle=UbxPid,
