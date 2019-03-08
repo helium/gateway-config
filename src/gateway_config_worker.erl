@@ -29,6 +29,7 @@
                 gps_sat_info=[] :: [ubx:nav_sat()],
                 download_info=false :: boolean(),
                 lights_off_file :: string(),
+                lights_enable :: boolean()
                }).
 
 gps_info() ->
