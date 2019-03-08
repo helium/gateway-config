@@ -3,6 +3,7 @@
 -behavior(ebus_object).
 
 -define(WORKER, gateway_config).
+-define(APPLICATION, gateway_config).
 
 -include("gateway_config.hrl").
 -include("gateway_gatt.hrl").
@@ -10,7 +11,7 @@
 -include_lib("ebus/include/ebus.hrl").
 
 %% ebus_object
--export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
+-export([start_link/1, init/1, handle_call/3, handle_cast/2, handle_info/2, handle_message/3, terminate/2]).
 %% api
 -export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
@@ -20,7 +21,6 @@
 -define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
 
 -record(state, {
-                config_file :: string(),
                 ubx_handle :: pid() | undefined,
                 button_handle :: pid() | undefined,
                 bluetooth_advertisement=undefined :: pid() | undefined,
@@ -29,7 +29,8 @@
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
                 download_info=false :: boolean(),
-                lights=true :: boolean()
+                lights_off_file :: string(),
+                lights_enable :: boolean()
                }).
 
 gps_info() ->
@@ -64,26 +65,25 @@ lights_info() ->
 
 %% ebus_object
 
-start_link(Bus, Args) ->
+start_link(Bus) ->
     ok = ebus:request_name(Bus, ?CONFIG_APPLICATION_NAME),
-    ebus_object:start_link(Bus, ?CONFIG_OBJECT_PATH, ?MODULE, Args, []).
+    ebus_object:start_link(Bus, ?CONFIG_OBJECT_PATH, ?MODULE, [], []).
 
 
-init(Args) ->
+init(_) ->
     erlang:register(?WORKER, self()),
-    GpsArgs = proplists:get_value(gps, Args, []),
+    {ok,GpsArgs} = application:get_env(gps),
     UbxPid = init_ubx(GpsArgs),
-    ButtonArgs = proplists:get_value(button, Args, []),
+    {ok, ButtonArgs} = application:get_env(button),
     ButtonPid = init_button(ButtonArgs),
 
-    ConfigFile = filename:join([proplists:get_value(base_dir, Args, "data"), "config.json"]),
-    ConfigData = read_config_file(ConfigFile),
-    Lights = proplists:get_value(lights, ConfigData, true),
+    {ok, LightsOffFile} = application:get_env(lights_off),
+    LightsEnable = not filelib:is_regular(LightsOffFile),
 
     {ok, #state{ubx_handle=UbxPid,
                 button_handle=ButtonPid,
-                lights=Lights,
-                config_file=ConfigFile}}.
+                lights_enable=LightsEnable,
+                lights_off_file=LightsOffFile}}.
 
 
 init_ubx(Args) ->
@@ -143,7 +143,7 @@ handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_DOWNLOADING), _Msg, State=#state{}) ->
     {reply, [bool], [State#state.download_info], State};
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_LIGHTS), _Msg, State=#state{}) ->
-    {reply, [bool], [State#state.lights], State};
+    {reply, [bool], [State#state.lights_enable], State};
 
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
@@ -167,7 +167,7 @@ handle_call(advertising_info, _From, State=#state{}) ->
           end,
     {reply, Adv, State};
 handle_call(lights_info, _From, State=#state{}) ->
-    Lights = case State#state.lights of
+    Lights = case State#state.lights_enable of
                  true -> on;
                  false -> off
              end,
@@ -242,12 +242,9 @@ handle_info(timeout_advertising, State=#state{})  ->
 
 
 %% Lights
-handle_info({enable_lights, Enable}, State=#state{lights=Enable}) ->
-    %% Ignore if request already reflects current state
-    {noreply, State};
 handle_info({enable_lights, Enable}, State=#state{}) ->
-    NewState = State#state{lights=Enable},
-    write_config_file(NewState),
+    NewState = State#state{lights_enable=Enable},
+    update_lights_off_file(NewState),
     {noreply, NewState,
      {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_LIGHTS,
       [bool], [Enable]}};
@@ -271,21 +268,10 @@ terminate(_Reason, State=#state{ubx_handle=Handle}) ->
 %% Internal
 %%
 
-
--spec read_config_file(string()) -> [tuple()].
-read_config_file(FileName) ->
-    case file:read_file(FileName) of
-        {ok, Bin} -> jsx:decode(Bin);
-        _ -> []
-    end.
-
--spec write_config_file(#state{}) -> ok | {error, term()}.
-write_config_file(State=#state{config_file=FileName}) ->
-    Config = [
-              {lights, State#state.lights}
-             ],
-    Bin = jsx:encode(Config),
-    file:write_file(FileName, Bin).
+update_lights_off_file(State=#state{lights_enable=true}) ->
+    file:delete(State#state.lights_off_file);
+update_lights_off_file(State=#state{lights_enable=false}) ->
+    file:write_file(State#state.lights_off_file, <<>>).
 
 update_gps_lock(3, State=#state{gps_lock=false}) ->
     %% If we get a lock signal lock
