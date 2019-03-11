@@ -71,7 +71,8 @@ wifi_services(["wifi", "services"], [], Flags) ->
                    false ->
                        AllServices;
                    _ ->
-                       gateway_gatt_char_wifi_services:limit_services(AllServices)
+                       {ok, S, _} = gateway_gatt_char_wifi_services:encode_services(AllServices),
+                       S
                end,
     FormatService = fun({Name, Strength}) ->
                             [{name, Name}, {strength, Strength}]
