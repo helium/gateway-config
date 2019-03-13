@@ -147,7 +147,7 @@ prop_encode() ->
 %% Geneerate service ids that are mostly the right size, but
 %% occasionally outrageously long.
 service_id() ->
-    frequency([{1, ?SIZED(Size, resize(1000 * Size, list(byte())))},
+    frequency([{5, ?SIZED(Size, resize(1000 * Size, list(byte())))},
                {90, list(byte())}]
              ).
 
