@@ -9,7 +9,7 @@
 -export([init/1, uuid/0, handle_info/2]).
 
 -record(state, {
-                ssid="" :: string()
+                connect_result_char=undefined :: undefined | ebus:object_path()
                }).
 
 uuid() ->
@@ -25,15 +25,14 @@ init(_) ->
     Characteristics =
         [
          {gateway_gatt_char_wifi_status, 0, []},
-         {gateway_gatt_char_wifi_ssid, 1, []},
-         {gateway_gatt_char_wifi_pass, 2, []},
-         {gatt_characteristic_string, 3, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
+         {gateway_gatt_char_wifi_connect, 1, []},
+         {gatt_characteristic_string, 2, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
-         {gateway_gatt_char_wifi_services, 4, []},
-         {gateway_gatt_char_pubkey, 5, [MinerProxy]},
-         {gateway_gatt_char_add_gateway, 6, [MinerProxy]},
-         {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
-         {gateway_gatt_char_lights, 8, []}
+         {gateway_gatt_char_wifi_services, 3, []},
+         {gateway_gatt_char_pubkey, 4, [MinerProxy]},
+         {gateway_gatt_char_add_gateway, 5, [MinerProxy]},
+         {gateway_gatt_char_assert_loc, 6, [MinerProxy]},
+         {gateway_gatt_char_lights, 7, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -41,12 +40,10 @@ init(_) ->
 handle_info(enable_wifi, State=#state{}) ->
     connman:enable(wifi, true),
     {noreply, State};
-handle_info({changed_wifi_ssid, Value}, State=#state{}) ->
-    {noreply, State#state{ssid=binary_to_list(Value)}};
-handle_info({changed_wifi_pass, _}, State=#state{ssid=""}) ->
-    lager:notice("Not connecting to an empty SSID"),
+handle_info({connect, wifi, _, _, Char}, State=#state{connect_result_char=E}) when E =/= undefined ->
+    self() ! {ebus_info, Char, {error, already_connecting}},
     {noreply, State};
-handle_info({changed_wifi_pass, Value}=Msg, State=#state{}) ->
+handle_info({connect, wifi, Service, Pass, Char}=Msg, State=#state{}) ->
     %% To aid the gatt online notifications we fetch all services that
     %% are wifi and online or ready and attempt to disconnect them
     %% before we try to connect to the SSID stored in the state.
@@ -65,26 +62,28 @@ handle_info({changed_wifi_pass, Value}=Msg, State=#state{}) ->
                           lager:info("Disconnecting from ~p", [Name]),
                           connman:disconnect(wifi, Name)
                   end, OnlineWifiPaths),
-    lager:info("Trying to connect to WiFI SSID: ~p", [State#state.ssid]),
+    lager:info("Trying to connect to WiFI SSID: ~p", [Service]),
     %% Start the connman agent if it was not already started.On
     %% failure to start the agent we try to restart it later and
     %% re-attempt the connect.
     case connman:start_agent() of
         ok ->
-            case connman:connect(wifi, State#state.ssid, binary_to_list(Value), self()) of
-                ok -> ok;
+            case connman:connect(wifi, Service, Pass, self()) of
+                ok ->
+                    {noreply, State#state{connect_result_char=Char}};
                 Other ->
-                    lager:notice("Start connect for SSID ~p: ~p", [State#state.ssid, Other])
-            end,
-            {noreply, State};
+                    lager:notice("Error connecting connman to SSID ~p: ~p", [Service, Other]),
+                    {noreply, State}
+            end;
         {error, Error} ->
             lager:warning("Failed to start connman agent; ~p", [Error]),
             erlang:send_after(?CONNMAN_AGENT_RETRY, self(), Msg),
             {noreply, State}
     end;
-handle_info({connect_result, _Tech, Result}, State=#state{}) ->
+handle_info({connect_result, _Tech, Result}=Msg, State=#state{}) ->
     lager:info("Connect result ~p", [Result]),
-    {noreply, State};
+    self() ! {ebus_info, State#state.connect_result_char, Msg},
+    {noreply, State#state{connect_result_char=undefined}};
 handle_info({lights, Enable}, State=#state{}) ->
     gateway_config:lights_enable(Enable),
     {noreply, State};
