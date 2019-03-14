@@ -51,7 +51,9 @@ read_value(State=#state{value=Value}) ->
 
 handle_signal(SignalID, _Msg, State=#state{wifi_signal=SignalID}) ->
     %% Wifi state changed
-    {noreply, maybe_notify_value(State#state{value=online_value()})}.
+    Value = online_value(),
+    lager:info("WiFi SSID property changed to ~p", [Value]),
+    {noreply, maybe_notify_value(State#state{value=Value})}.
 %%
 %% Internal
 %%
