@@ -15,7 +15,8 @@ register_all_usage() ->
                   end,
                   [
                    wifi_usage(),
-                   wifi_services_usage()
+                   wifi_services_usage(),
+                   wifi_online_usage()
                   ]).
 
 register_all_cmds() ->
@@ -24,7 +25,8 @@ register_all_cmds() ->
                   end,
                   [
                    wifi_cmd(),
-                   wifi_services_cmd()
+                   wifi_services_cmd(),
+                   wifi_online_cmd()
                   ]).
 
 %%
@@ -79,4 +81,31 @@ wifi_services(["wifi", "services"], [], Flags) ->
                     end,
     [clique_status:table([FormatService(S) || S <- Services])];
 wifi_services([_, _, _], [], []) ->
+    usage.
+
+%%
+%% wifi online
+%%
+
+wifi_online_cmd() ->
+    [
+     [["wifi", "online"], [],
+      [],
+      fun wifi_online/3]
+    ].
+
+wifi_online_usage() ->
+    [["wifi", "online"],
+     ["wifi online \n\n",
+      "  Get the current online or ready wifi servics\n"
+     ]
+    ].
+
+wifi_online(["wifi", "online"], [], []) ->
+    Services = gateway_config:wifi_services_online(),
+    FormatService = fun(Name) ->
+                               [{name, Name}]
+                       end,
+    [clique_status:table([FormatService(S) || S <- Services])];
+wifi_online([_, _], [], []) ->
     usage.
