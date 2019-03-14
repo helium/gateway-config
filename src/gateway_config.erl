@@ -4,7 +4,7 @@
          gps_info/0, gps_sat_info/0,
          gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
-         wifi_services/0,
+         wifi_services/0, wifi_services_online/0,
          advertising_enable/1, advertising_info/0,
          lights_enable/1, lights_info/0]).
 
@@ -53,6 +53,19 @@ wifi_services() ->
                          end, connman:services()),
     %% Sort by signal strength
     lists:reverse(lists:keysort(2, Services)).
+
+%% Find all services that are online or ready. There's likely only
+%% ever one of these but this is how we find the target service if
+%% we're connected.
+-spec wifi_services_online() -> [string()].
+wifi_services_online() ->
+    lists:filtermap(fun({_Path, M}) ->
+                            case maps:get("Type", M, false) == "wifi" andalso
+                                lists:member(maps:get("State", M, false), ["online", "ready"]) of
+                                true -> {true, maps:get("Name", M)};
+                                false -> false
+                            end
+                    end, connman:services()).
 
 gps_info() ->
     gateway_config_worker:gps_info().

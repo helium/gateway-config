@@ -28,11 +28,12 @@ init(_) ->
          {gateway_gatt_char_wifi_connect, 1, []},
          {gatt_characteristic_string, 2, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
-         {gateway_gatt_char_wifi_services, 3, []},
-         {gateway_gatt_char_pubkey, 4, [MinerProxy]},
-         {gateway_gatt_char_add_gateway, 5, [MinerProxy]},
-         {gateway_gatt_char_assert_loc, 6, [MinerProxy]},
-         {gateway_gatt_char_lights, 7, []}
+         {gateway_gatt_char_wifi_ssid, 3, []},
+         {gateway_gatt_char_wifi_services, 4, []},
+         {gateway_gatt_char_pubkey, 5, [MinerProxy]},
+         {gateway_gatt_char_add_gateway, 6, [MinerProxy]},
+         {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
+         {gateway_gatt_char_lights, 8, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -47,17 +48,7 @@ handle_info({connect, wifi, Service, Pass, Char}=Msg, State=#state{}) ->
     %% To aid the gatt online notifications we fetch all services that
     %% are wifi and online or ready and attempt to disconnect them
     %% before we try to connect to the SSID stored in the state.
-    OnlineWifiPaths =
-        %% Find all services that are online or ready and disconnect
-        %% from them. There's likely only ever one of these but this
-        %% is how we find the target service if we're connected.
-        lists:filtermap(fun({_Path, M}) ->
-                                case maps:get("Type", M, false) == "wifi" andalso
-                                    lists:member(maps:get("State", M, false), ["online", "ready"]) of
-                                    true -> {true, maps:get("Name", M)};
-                                    false -> false
-                                end
-                        end, connman:services()),
+    OnlineWifiPaths = gateway_config:wifi_services_online(),
     lists:foreach(fun(Name) ->
                           lager:info("Disconnecting from ~p", [Name]),
                           connman:disconnect(wifi, Name)
