@@ -40,9 +40,11 @@ read_value(State=#state{}) ->
         {error, _} -> {ok, <<"error">>, State}
     end.
 
+-spec encode_services([string()]) -> {ok, [string()], binary()} | {error, term()}.
 encode_services(Names) ->
     encode_services({Names, []}, ?MAX_VALUE_SIZE).
 
+-spec encode_services({[string()], [string()]}, pos_integer()) -> {ok, [string()], binary()} | {error, term()}.
 encode_services({Services, Tail}, MaxSize) ->
     Bin = encode_names(Services),
     case byte_size(Bin) > MaxSize of
@@ -57,6 +59,7 @@ encode_services({Services, Tail}, MaxSize) ->
             encode_services({Services ++ Add, NewTail}, MaxSize)
     end.
 
+-spec encode_names([string()]) -> binary().
 encode_names(Names) ->
     Msg = #gateway_wifi_services_v1_pb{services=Names},
     gateway_gatt_char_wifi_services_pb:encode_msg(Msg).
@@ -111,9 +114,14 @@ error_test() ->
 
     ok.
 
+to_range(M, N) ->
+    Base = N div M,
+    {Base*M, (Base+1)*M}.
+
 %% Test the properties of how we encode a list of service ids
 prop_encode() ->
-    ?FORALL(Names, list(service_id()),
+    ?FORALL(Names, service_id_list(),
+            collect(to_range(10, length(Names)),
             begin
                 case encode_services(Names) of
                     {ok, EncodedNames, Encoded} ->
@@ -124,14 +132,15 @@ prop_encode() ->
                                 %% and there is no remaining service
                                 %% ids, the encoded list must be the
                                 %% right size.
-                                byte_size(Encoded) =< ?MAX_VALUE_SIZE;
+                                byte_size(Encoded) =< ?MAX_VALUE_SIZE
+                                    andalso EncodedNames == Names;
                             _ ->
                                 %% and there are remaining service
                                 %% ids, then just adding one of the
                                 %% remaining ones must push it past
                                 %% the max size
                                 EncodeOneMore = encode_names(EncodedNames ++ [hd(Tail)]),
-                                lists:prefix(EncodedNames, Names)
+                                    lists:prefix(EncodedNames, Names)
                                     andalso byte_size(EncodeOneMore) > ?MAX_VALUE_SIZE
                         end;
                     {error, service_length} ->
@@ -141,15 +150,22 @@ prop_encode() ->
                         byte_size(EncodedFirst) > ?MAX_VALUE_SIZE
                 end
             end
-           ).
+           )).
 
 
 %% Geneerate service ids that are mostly the right size, but
 %% occasionally outrageously long.
 service_id() ->
-    frequency([{5, ?SIZED(Size, resize(1000 * Size, list(byte())))},
-               {90, list(byte())}]
-             ).
+    frequency([
+               {5, ?SIZED(Size, resize(1000 * Size, list(byte())))},
+               {90, list(byte())}
+              ]).
+
+service_id_list() ->
+    frequency([
+               {5, ?SIZED(Size, resize(10 * Size, list(service_id())))},
+               {90, list(service_id())}
+               ]).
 
 encode_test() ->
     ?assert(proper:quickcheck(prop_encode(), [long_result])),
