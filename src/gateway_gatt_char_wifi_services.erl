@@ -16,7 +16,7 @@
 -record(state, { path :: ebus:object_path()
                }).
 
--define(MAX_VALUE_SIZE, 200).
+-define(MAX_VALUE_SIZE, 184).
 
 uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_WIFI_SERVICES.
