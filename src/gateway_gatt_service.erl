@@ -24,7 +24,6 @@ init(_) ->
     %% restart
     Characteristics =
         [
-         {gateway_gatt_char_wifi_status, 0, []},
          {gateway_gatt_char_wifi_connect, 1, []},
          {gatt_characteristic_string, 2, [{uuid, ?UUID_GATEWAY_GATT_CHAR_MAC},
                                           {value, gateway_config:serial_number()}]},
@@ -45,14 +44,6 @@ handle_info({connect, wifi, _, _, Char}, State=#state{connect_result_char=E}) wh
     self() ! {ebus_info, Char, {error, already_connecting}},
     {noreply, State};
 handle_info({connect, wifi, Service, Pass, Char}=Msg, State=#state{}) ->
-    %% To aid the gatt online notifications we fetch all services that
-    %% are wifi and online or ready and attempt to disconnect them
-    %% before we try to connect to the SSID stored in the state.
-    OnlineWifiPaths = gateway_config:wifi_services_online(),
-    lists:foreach(fun(Name) ->
-                          lager:info("Disconnecting from ~p", [Name]),
-                          connman:disconnect(wifi, Name)
-                  end, OnlineWifiPaths),
     lager:info("Trying to connect to WiFI SSID: ~p", [Service]),
     %% Start the connman agent if it was not already started.On
     %% failure to start the agent we try to restart it later and
