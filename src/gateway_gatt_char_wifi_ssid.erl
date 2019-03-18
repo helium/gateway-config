@@ -10,8 +10,10 @@
 
 -record(state, { path :: ebus:object_path(),
                  notify=false :: boolean(),
-                 value=undefined :: binary() | undefined,
-                 wifi_signal=undefined :: ebus:filter_id() | undefined
+                 value= <<"">> :: binary(),
+                 wifi_signal :: ebus:filter_id(),
+                 service_path :: ebus:object_path() | undefined,
+                 service_signal=undefined :: ebubs:filter_id() | undefined
                }).
 
 
@@ -27,36 +29,71 @@ init(Path, _) ->
          {gatt_descriptor_cud, 0, ["WiFi SSID"]},
          {gatt_descriptor_pf, 1, [utf8_string]}
         ],
-    {ok, Descriptors, #state{path=Path}}.
+    {ok, SignalID} = connman:register_state_notify({tech, wifi}, self(), Path),
+    {ok, Descriptors, update_value(#state{path=Path, wifi_signal=SignalID})}.
 
 start_notify(State=#state{notify=true}) ->
     %% Already notifying
     {ok, State};
 start_notify(State=#state{}) ->
-    {ok, SignalID} = connman:register_state_notify({tech, wifi}, self(), State#state.path),
-    {ok, maybe_notify_value(State#state{notify=true, wifi_signal=SignalID})}.
+    {ok, maybe_notify_value(State#state{notify=true})}.
 
 stop_notify(State=#state{notify=false}) ->
     %% Already not notifying
     {ok, State};
 stop_notify(State=#state{}) ->
-    connman:unregister_state_notify(State#state.wifi_signal, self(), State#state.path),
-    {ok, State#state{notify=false, wifi_signal=undefined}}.
+    {ok, State#state{notify=false}}.
 
-read_value(State=#state{value=undefined}) ->
-    read_value(State#state{value=online_value()});
 read_value(State=#state{value=Value}) ->
     {ok, Value, State}.
 
 
 handle_signal(SignalID, _Msg, State=#state{wifi_signal=SignalID}) ->
-    %% Wifi state changed
-    Value = online_value(),
-    lager:info("WiFi SSID property changed to ~p", [Value]),
-    {noreply, maybe_notify_value(State#state{value=Value})}.
+    %% WiFi overall state has changed
+    {noreply, maybe_notify_value(update_value(State))};
+handle_signal(SignalID, Msg, State=#state{service_signal=SignalID}) ->
+    %% Signal for the current service. Deal only with changes to the
+    %% State attribute
+    case ebus_message:args(Msg) of
+        {ok, ["State", _]} ->
+            {noreply, maybe_notify_value(update_value(State))};
+        _ ->
+            {noreply, State}
+    end.
+
+
 %%
 %% Internal
 %%
+
+-spec update_value(#state{}) -> #state{}.
+update_value(State=#state{service_path=CurrentPath}) ->
+    case {CurrentPath, gateway_config:wifi_services_online()} of
+        {CurrentPath, [{_, CurrentPath} | _]} ->
+            %% No change in path
+            lager:info("WiFi unchanged for ~p at: ~p", [State#state.value, CurrentPath]),
+            State;
+        {undefined, []} ->
+            %% No path and not connected
+            lager:info("WiFi still disconnected"),
+            State;
+        {undefined, [{Value, NewPath} | _]} ->
+            %% From no path to a path
+            lager:info("WiFi connected to: ~p at ~p", [Value, NewPath]),
+            {ok, SignalID} = connman:register_state_notify({path, NewPath}, self(), State#state.path),
+            State#state{value=list_to_binary(Value), service_path=NewPath, service_signal=SignalID};
+        {CurrentPath, []} ->
+            %% Disconnected from wifi
+            lager:info("WiFi disconnected from: ~p", [State#state.value]),
+            connman:unregister_state_notify(State#state.service_signal, self(), State#state.path),
+            State#state{service_signal=undefined, value= <<"">>, service_path=undefined};
+        {CurrentPath, [{Value, NewPath} | _]} ->
+            %% Switching paths
+            lager:info("WiFi changed from ~p to: ~p", [State#state.value, Value]),
+            connman:unregister_state_notify(State#state.service_signal, self(), State#state.path),
+            {ok, SignalID} = connman:register_state_notify({path, NewPath}, self(), State#state.path),
+            State#state{value=list_to_binary(Value), service_path=NewPath, service_signal=SignalID}
+    end.
 
 maybe_notify_value(State=#state{notify=false}) ->
     State;
@@ -66,43 +103,77 @@ maybe_notify_value(State=#state{}) ->
     State.
 
 
-online_value() ->
-    case gateway_config:wifi_services_online() of
-        [] -> <<"">>;
-        [Service | _] -> list_to_binary(Service)
-    end.
-
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-uuid_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
-    ?assertEqual(?UUID_GATEWAY_GATT_CHAR_WIFI_SSID, ?MODULE:uuid(Char)),
-    ok.
-
-flags_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
-    ?assertEqual([read, notify], ?MODULE:flags(Char)),
-    ok.
-
-services_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
-
+meck_gateway_config() ->
     meck:new(gateway_config, [passthrough]),
     meck:expect(gateway_config, wifi_services_online,
                 fun() ->
-                        get({?MODULE, meck_services})
-                end),
+                        case get({?MODULE, meck_services}) of
+                            undefined -> [];
+                            Val -> Val
+                        end
+                end).
+
+meck_validate_gateway_config() ->
+    ?assert(meck:validate(gateway_config)),
+    meck:unload(gateway_config).
+
+meck_connman_register_notify() ->
     meck:new(connman, [passthrough]),
     meck:expect(connman, register_state_notify,
-               fun(_, _, _) -> {ok, listener} end),
+               fun({tech, wifi}, _, _) ->
+                       {ok, wifi_listener};
+                  ({path, _}, _, _) ->
+                       {ok, path_listener}
+                  end).
+
+meck_connman_unregister_notify() ->
+    %% Don't mock the wifi_listener unregistration since we never
+    %% unregister the wifi state listener
     meck:expect(connman, unregister_state_notify,
-               fun(listener, _, _) -> ok end),
+               fun(path_listener, _, _) ->
+                       ok
+               end).
+
+meck_validate_connman() ->
+    ?assert(meck:validate(connman)),
+    meck:unload(connman).
+
+uuid_test() ->
+    meck_gateway_config(),
+    meck_connman_register_notify(),
+
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    ?assertEqual(?UUID_GATEWAY_GATT_CHAR_WIFI_SSID, ?MODULE:uuid(Char)),
+
+    meck_validate_connman(),
+    meck_validate_gateway_config(),
+    ok.
+
+flags_test() ->
+    meck_gateway_config(),
+    meck_connman_register_notify(),
+
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    ?assertEqual([read, notify], ?MODULE:flags(Char)),
+
+    meck_validate_connman(),
+    meck_validate_gateway_config(),
+
+    ok.
+
+services_test() ->
+    meck_connman_register_notify(),
+    meck_connman_unregister_notify(),
+    meck_gateway_config(),
 
     %% Set up one set of services
-    Services = ["OnlineService"],
+    Services = [{"OnlineService", "OnlinePath"}],
     put({?MODULE, meck_services}, Services),
+
+    {ok, _, Char} = ?MODULE:init("", [proxy]),
 
     %% Start notifying
     {ok, Char2} = ?MODULE:start_notify(Char),
@@ -111,15 +182,15 @@ services_test() ->
 
     %% Read the value
     {ok, Result, Char3} = ?MODULE:read_value(Char2),
-    ?assertEqual(Result, list_to_binary(hd(Services))),
+    ?assertEqual(list_to_binary(element(1, hd(Services))), Result),
 
     %% Try notifying and reading some new services
     Char4 = lists:foldl(fun(NewServices, State) ->
                                 put({?MODULE, meck_services}, NewServices),
-                                {noreply, NewState} = ?MODULE:handle_signal(listener, ignore, State),
+                                {noreply, NewState} = ?MODULE:handle_signal(wifi_listener, ignore, State),
                                 ExpectedValue = case NewServices of
                                                     [] -> <<"">>;
-                                                    _ -> list_to_binary(hd(NewServices))
+                                                    _ -> list_to_binary(element(1, hd(NewServices)))
                                                 end,
                                 %% The signal handler would already have refreshed the value, so
                                 %% no state change
@@ -127,22 +198,49 @@ services_test() ->
                                 NewState
                         end, Char3,
                         [
-                         ["NewOnlineServices"],
-                         []
+                         %% Try setting twice with no services at all
+                         [],
+                         [],
+                         %% Set a new service with a new path
+                         [{"NewOnlineService", "OtherPath"}],
+                         %% Then set again to ensure that setting the same path twice works
+                         [{"NewOnlineService", "OtherPath"}]
                         ]),
 
     %% Stop notifying
     {ok, Char5} = ?MODULE:stop_notify(Char4),
     %% Stop notifying again has no impact
     ?assertEqual({ok, Char5}, ?MODULE:stop_notify(Char5)),
-    %% Hack
-    ?assertEqual(Char5, maybe_notify_value(Char5)),
 
-    ?assert(meck:validate(gateway_config)),
-    meck:unload(gateway_config),
+    meck:new(ebus_message, [passthrough]),
+    meck:expect(ebus_message, args,
+                fun(_) ->
+                        {ok, get({?MODULE, meck_message_args})}
+                end),
 
-    ?assert(meck:validate(connman)),
-    meck:unload(connman),
+    _Char6 = lists:foldl(fun({MsgArgs, NewServices}, State) ->
+                                 put({?MODULE, meck_services}, NewServices),
+                                 put({?MODULE, meck_message_args}, MsgArgs),
+                                 {noreply, NewState} = ?MODULE:handle_signal(path_listener, ignore, State),
+                                 ExpectedValue = list_to_binary(element(1, hd(NewServices))),
+                                 %% The signal handler would already have refreshed the value, so
+                                 %% no state change
+                                 ?assertEqual({ok, ExpectedValue, NewState}, ?MODULE:read_value(NewState)),
+                                 NewState
+                         end, Char5,
+                         [
+                          %% Set a new service with a new path
+                          {["State", "foo"], [{"StateOnlineService", "StatePath"}]},
+                          %% Set with no actual state change.. the
+                          %% service list below will not be read but
+                          %% will be validated against.
+                          {["NotState", "bar"], [{"StateOnlineService", "StatePath"}]}
+                         ]),
+
+    meck_validate_connman(),
+    meck_validate_gateway_config(),
+    ?assert(meck:validate(ebus_message)),
+    meck:unload(ebus_message),
 
     ok.
 

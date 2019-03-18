@@ -103,8 +103,8 @@ wifi_online_usage() ->
 
 wifi_online(["wifi", "online"], [], []) ->
     Services = gateway_config:wifi_services_online(),
-    FormatService = fun(Name) ->
-                               [{name, Name}]
+    FormatService = fun({Name, Path}) ->
+                               [{name, Name}, {path, Path}]
                        end,
     [clique_status:table([FormatService(S) || S <- Services])];
 wifi_online([_, _], [], []) ->

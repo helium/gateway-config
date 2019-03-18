@@ -66,6 +66,7 @@ handle_info({connect_result, wifi, Result}, State=#state{}) ->
                 {error, not_found} -> <<"not_found">>;
                 {error, timeout} -> <<"timeout">>;
                 {error, invalid_key} -> <<"invalid">>;
+                {error, connect_failed} -> <<"failed">>;
                 {error, already_connecting} -> <<"already">>;
                 {error, _} -> <<"error">>
             end,

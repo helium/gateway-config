@@ -57,12 +57,12 @@ wifi_services() ->
 %% Find all services that are online or ready. There's likely only
 %% ever one of these but this is how we find the target service if
 %% we're connected.
--spec wifi_services_online() -> [string()].
+-spec wifi_services_online() -> [{string(), ebus:object_path()}].
 wifi_services_online() ->
-    lists:filtermap(fun({_Path, M}) ->
-                            case maps:get("Type", M, false) == "wifi" andalso
-                                lists:member(maps:get("State", M, false), ["online", "ready"]) of
-                                true -> {true, maps:get("Name", M)};
+    lists:filtermap(fun({Path, M}) ->
+                            case maps:get("Type", M, false) == "wifi"
+                                andalso maps:get("State", M, false) == "online" of
+                                true -> {true, {maps:get("Name", M), Path}};
                                 false -> false
                             end
                     end, connman:services()).
