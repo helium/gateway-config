@@ -3,9 +3,12 @@
 
 -behavior(gatt_characteristic).
 
--export([init/2, uuid/1, flags/1,
-         read_value/1,
-         start_notify/1, stop_notify/1,
+-export([init/2,
+         uuid/1,
+         flags/1,
+         read_value/2,
+         start_notify/1,
+         stop_notify/1,
          handle_signal/3]).
 
 -record(state, { path :: ebus:object_path(),
@@ -44,7 +47,7 @@ stop_notify(State=#state{notify=false}) ->
 stop_notify(State=#state{}) ->
     {ok, State#state{notify=false}}.
 
-read_value(State=#state{value=Value}) ->
+read_value(State=#state{value=Value}, _) ->
     {ok, Value, State}.
 
 
@@ -181,7 +184,7 @@ services_test() ->
     ?assertEqual({ok, Char2}, ?MODULE:start_notify(Char2)),
 
     %% Read the value
-    {ok, Result, Char3} = ?MODULE:read_value(Char2),
+    {ok, Result, Char3} = ?MODULE:read_value(Char2, #{}),
     ?assertEqual(list_to_binary(element(1, hd(Services))), Result),
 
     %% Try notifying and reading some new services
@@ -194,7 +197,7 @@ services_test() ->
                                                 end,
                                 %% The signal handler would already have refreshed the value, so
                                 %% no state change
-                                ?assertEqual({ok, ExpectedValue, NewState}, ?MODULE:read_value(NewState)),
+                                ?assertEqual({ok, ExpectedValue, NewState}, ?MODULE:read_value(NewState, #{})),
                                 NewState
                         end, Char3,
                         [
@@ -225,7 +228,7 @@ services_test() ->
                                  ExpectedValue = list_to_binary(element(1, hd(NewServices))),
                                  %% The signal handler would already have refreshed the value, so
                                  %% no state change
-                                 ?assertEqual({ok, ExpectedValue, NewState}, ?MODULE:read_value(NewState)),
+                                 ?assertEqual({ok, ExpectedValue, NewState}, ?MODULE:read_value(NewState, #{})),
                                  NewState
                          end, Char5,
                          [

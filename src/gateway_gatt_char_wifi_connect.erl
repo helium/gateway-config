@@ -7,7 +7,7 @@
 -export([init/2,
          uuid/1,
          flags/1,
-         read_value/1,
+         read_value/2,
          write_value/2,
          start_notify/1,
          stop_notify/1,
@@ -34,7 +34,7 @@ init(Path, _) ->
     {ok, Descriptors,
      #state{path=Path}}.
 
-read_value(State=#state{}) ->
+read_value(State=#state{}, _) ->
     {ok, State#state.value, State}.
 
 write_value(State=#state{}, Bin) ->
@@ -129,10 +129,10 @@ ValidValues =[
     ReqBin = gateway_gatt_char_wifi_connect_pb:encode_msg(Req),
     {ok, Char2} = ?MODULE:write_value(Char1, ReqBin),
 
-    ?assertMatch({ok, <<"connecting">>, _}, ?MODULE:read_value(Char2)),
+    ?assertMatch({ok, <<"connecting">>, _}, ?MODULE:read_value(Char2, #{})),
 
     {noreply, Char3} = ?MODULE:handle_info({connect_result, wifi, ok}, Char2),
-    ?assertMatch({ok, <<"connected">>, _}, ?MODULE:read_value(Char3)),
+    ?assertMatch({ok, <<"connected">>, _}, ?MODULE:read_value(Char3, #{})),
 
     {ok, Char4} = ?MODULE:stop_notify(Char3),
     ?assertEqual({ok, Char4}, ?MODULE:stop_notify(Char4)),
@@ -148,7 +148,7 @@ error_test() ->
     Char2 = lists:foldl(fun({Error, Value}, State) ->
                                 {noreply, NewState} = ?MODULE:handle_info({connect_result, wifi, Error},
                                                                           State),
-                                ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState)),
+                                ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState, #{})),
                                 NewState
                         end, Char,
                         [
@@ -162,7 +162,7 @@ error_test() ->
 
     InvalidReqBin = <<"invalid">>,
     {ok, Char3} = ?MODULE:write_value(Char2, InvalidReqBin),
-    ?assertEqual({ok, <<"badargs">>, Char3}, ?MODULE:read_value(Char3)),
+    ?assertEqual({ok, <<"badargs">>, Char3}, ?MODULE:read_value(Char3, #{})),
 
     {noreply, Char3} = ?MODULE:handle_info(unknown_message, Char3),
     ok.

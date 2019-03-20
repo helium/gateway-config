@@ -7,7 +7,7 @@
 -export([init/2,
          uuid/1,
          flags/1,
-         read_value/1,
+         read_value/2,
          write_value/2,
          start_notify/1,
          stop_notify/1]).
@@ -33,7 +33,7 @@ init(Path, []) ->
         ],
     {ok, Descriptors, #state{path=Path}}.
 
-read_value(State=#state{}) ->
+read_value(State=#state{}, _) ->
     {ok, State#state.value, State}.
 
 write_value(State=#state{}, Bin) ->
@@ -100,17 +100,17 @@ off_test() ->
     ?assertEqual({ok, Char1}, ?MODULE:start_notify(Char1)),
 
     {ok, Char2} = ?MODULE:write_value(Char1, <<"off">>),
-    ?assertEqual({ok, <<"off">>, Char2}, ?MODULE:read_value(Char2)),
+    ?assertEqual({ok, <<"off">>, Char2}, ?MODULE:read_value(Char2, #{})),
 
     %% Write an invalid value and ensure off remains
     {ok, Char2} = ?MODULE:write_value(Char2, <<"invalid">>),
-    ?assertEqual({ok, <<"off">>, Char2}, ?MODULE:read_value(Char2)),
+    ?assertEqual({ok, <<"off">>, Char2}, ?MODULE:read_value(Char2, #{})),
 
     {ok, Char3} = ?MODULE:stop_notify(Char2),
     ?assertEqual({ok, Char3}, ?MODULE:stop_notify(Char3)),
 
     {ok, Char4} = ?MODULE:write_value(Char3, <<"on">>),
-    ?assertEqual({ok, <<"on">>, Char4}, ?MODULE:read_value(Char4)),
+    ?assertEqual({ok, <<"on">>, Char4}, ?MODULE:read_value(Char4, #{})),
 
     ?assert(meck:validate(gatt_characteristic)),
     meck:unload(gatt_characteristic),

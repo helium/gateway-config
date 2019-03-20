@@ -8,7 +8,7 @@
 -export([init/2,
          uuid/1,
          flags/1,
-         read_value/1,
+         read_value/2,
          write_value/2,
          start_notify/1,
          stop_notify/1]).
@@ -35,7 +35,7 @@ init(Path, [Proxy]) ->
         ],
     {ok, Descriptors, #state{path=Path, proxy=Proxy}}.
 
-read_value(State=#state{}) ->
+read_value(State=#state{}, _) ->
     {ok, State#state.value, State}.
 
 write_value(State=#state{}, Bin) ->
@@ -129,7 +129,7 @@ success_test() ->
     Msg = #gateway_add_gateway_v1_pb{owner=Owner, fee=Fee, amount=Amount},
     EncodedMsg = gateway_gatt_char_add_gateway_pb:encode_msg(Msg),
     {ok, Char2} = ?MODULE:write_value(Char1, EncodedMsg),
-    ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2)),
+    ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2, #{})),
 
     {ok, Char3} = ?MODULE:stop_notify(Char2),
     ?assertEqual({ok, Char3}, ?MODULE:stop_notify(Char3)),
@@ -157,7 +157,7 @@ error_test() ->
                         Msg = #gateway_add_gateway_v1_pb{owner=ErrorName, fee=1, amount=10},
                         EncodedMsg = gateway_gatt_char_add_gateway_pb:encode_msg(Msg),
                         {ok, NewState} = ?MODULE:write_value(State, EncodedMsg),
-                        ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState)),
+                        ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState, #{})),
                         NewState
                   end, Char,
                  [
@@ -169,7 +169,7 @@ error_test() ->
 
     InvalidReqBin = <<"invalid">>,
     {ok, Char2} = ?MODULE:write_value(Char, InvalidReqBin),
-    ?assertEqual({ok, <<"badargs">>, Char2}, ?MODULE:read_value(Char2)),
+    ?assertEqual({ok, <<"badargs">>, Char2}, ?MODULE:read_value(Char2, #{})),
 
     ?assert(meck:validate(ebus_proxy)),
     meck:unload(ebus_proxy),
