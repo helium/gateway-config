@@ -7,7 +7,7 @@
 -export([init/2,
          uuid/1,
          flags/1,
-         read_value/1]).
+         read_value/2]).
 
 -record(state, {
                  path :: ebus:object_path(),
@@ -29,7 +29,7 @@ init(Path, [Proxy]) ->
         ],
     {ok, Descriptors, #state{path=Path, proxy=Proxy}}.
 
-read_value(State=#state{}) ->
+read_value(State=#state{}, _) ->
     Value = case ebus_proxy:call(State#state.proxy, ?MINER_OBJECT(?MINER_MEMBER_PUBKEY)) of
                 {ok, [PubKeyB58]} ->  list_to_binary(PubKeyB58);
                 {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
@@ -62,7 +62,7 @@ read_test() ->
                 fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_PUBKEY)) ->
                         {ok, [PubKey]}
                 end),
-    ?assertEqual({ok, list_to_binary(PubKey), Char}, ?MODULE:read_value(Char)),
+    ?assertEqual({ok, list_to_binary(PubKey), Char}, ?MODULE:read_value(Char, #{})),
 
    ?assert(meck:validate(ebus_proxy)),
     meck:unload(ebus_proxy),
@@ -80,7 +80,7 @@ error_test() ->
 
    lists:foldl(fun({ErrorName, Value}, State) ->
                        put({?MODULE, meck_error}, ErrorName),
-                       ?assertEqual({ok, Value, State}, ?MODULE:read_value(State)),
+                       ?assertEqual({ok, Value, State}, ?MODULE:read_value(State, #{})),
                        State
                end, Char,
                [

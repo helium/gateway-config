@@ -9,14 +9,18 @@
 
 -behavior(gatt_characteristic).
 
--export([init/2, uuid/1, flags/1,
-         read_value/1,
-         encode_services/1, encode_services/2]).
+-export([init/2,
+         uuid/1,
+         flags/1,
+         read_value/2,
+         encode_services/1,
+         encode_services/2]).
 
--record(state, { path :: ebus:object_path()
+-record(state, { path :: ebus:object_path(),
+                 value= <<>> :: binary ()
                }).
 
--define(MAX_VALUE_SIZE, 184).
+-define(MAX_VALUE_SIZE, 512).
 
 uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_WIFI_SERVICES.
@@ -32,12 +36,14 @@ init(Path, _) ->
         ],
     {ok, Descriptors, #state{path=Path}}.
 
-read_value(State=#state{}) ->
+read_value(State=#state{value=Value}, #{"offset" := Offset}) ->
+    {ok, binary:part(Value, Offset, byte_size (Value) - Offset), State};
+read_value(State=#state{}, _Opts) ->
     Services = gateway_config:wifi_services(),
     Names = [Name || {Name, _} <- Services],
     case encode_services(Names) of
-        {ok, _, Bin} -> {ok, Bin, State};
-        {error, _} -> {ok, <<"error">>, State}
+        {ok, _, Bin} -> {ok, Bin, State#state{value=Bin}};
+        {error, _} -> {ok, <<"error">>, State#state{value= <<>>}}
     end.
 
 -spec encode_services([string()]) -> {ok, [string()], binary()} | {error, term()}.
@@ -92,7 +98,7 @@ success_test() ->
     meck:expect(gateway_config, wifi_services,
                 fun() -> Services end),
     %% Ensure we can read the characteristic
-    {ok, Bin, _Char2} = ?MODULE:read_value(Char),
+    {ok, Bin, _Char2} = ?MODULE:read_value(Char, #{}),
     %% And that it decodes to the right list of names
     ?assertMatch(#gateway_wifi_services_v1_pb{services=ServiceNames},
                  gateway_gatt_char_wifi_services_pb:decode_msg(Bin, gateway_wifi_services_v1_pb)),
@@ -107,7 +113,7 @@ error_test() ->
     meck:new(gateway_config, [passthrough]),
     meck:expect(gateway_config, wifi_services,
                 fun() -> Services end),
-    ?assertMatch({ok, <<"error">>, _}, ?MODULE:read_value(Char)),
+    ?assertMatch({ok, <<"error">>, _}, ?MODULE:read_value(Char, #{})),
 
     ?assert(meck:validate(gateway_config)),
     meck:unload(gateway_config),

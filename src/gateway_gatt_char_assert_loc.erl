@@ -10,7 +10,7 @@
 -export([init/2,
          uuid/1,
          flags/1,
-         read_value/1,
+         read_value/2,
          write_value/2,
          start_notify/1,
          stop_notify/1]).
@@ -37,7 +37,7 @@ init(Path, [Proxy]) ->
         ],
     {ok, Descriptors, #state{path=Path, proxy=Proxy}}.
 
-read_value(State=#state{}) ->
+read_value(State=#state{}, _) ->
     {ok, State#state.value, State}.
 
 write_value(State=#state{}, Bin) ->
@@ -130,7 +130,7 @@ success_test() ->
     Req = #gateway_assert_loc_v1_pb{lat=10.0, lon=11.0},
     ReqBin = gateway_gatt_char_assert_loc_pb:encode_msg(Req),
     {ok, Char2} = ?MODULE:write_value(Char1, ReqBin),
-    ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2)),
+    ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2, #{})),
 
     {ok, Char3} = ?MODULE:stop_notify(Char2),
     ?assertEqual({ok, Char3}, ?MODULE:stop_notify(Char3)),
@@ -159,7 +159,7 @@ error_test() ->
     Char2 = lists:foldl(fun({ErrorName, Value}, State) ->
                                 put({?MODULE, meck_error}, ErrorName),
                                 {ok, NewState} = ?MODULE:write_value(State, ReqBin),
-                                ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState)),
+                                ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState, #{})),
                                 NewState
                         end, Char,
                         [
@@ -171,7 +171,7 @@ error_test() ->
 
     InvalidReqBin = <<"invalid">>,
     {ok, Char3} = ?MODULE:write_value(Char2, InvalidReqBin),
-    ?assertEqual({ok, <<"badargs">>, Char3}, ?MODULE:read_value(Char3)),
+    ?assertEqual({ok, <<"badargs">>, Char3}, ?MODULE:read_value(Char3, #{})),
 
     ?assert(meck:validate(ebus_proxy)),
     meck:unload(ebus_proxy),
