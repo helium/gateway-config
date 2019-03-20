@@ -61,7 +61,7 @@ wifi_services() ->
 wifi_services_online() ->
     lists:filtermap(fun({Path, M}) ->
                             case maps:get("Type", M, false) == "wifi"
-                                andalso maps:get("State", M, false) == "online" of
+                                andalso lists:member(maps:get("State", M, false), ["online", "ready"]) of
                                 true -> {true, {maps:get("Name", M), Path}};
                                 false -> false
                             end
