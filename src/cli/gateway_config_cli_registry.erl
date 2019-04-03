@@ -5,7 +5,8 @@
                       gateway_config_cli_download,
                       gateway_config_cli_advertise,
                       gateway_config_cli_lights,
-                      gateway_config_cli_wifi
+                      gateway_config_cli_wifi,
+                      gateway_config_cli_ble
                      ]).
 
 -export([register_cli/0, command/1]).

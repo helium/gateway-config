@@ -16,7 +16,8 @@
 -export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
          advertising_enable/1, advertising_info/0,
-         lights_enable/1, lights_info/0]).
+         lights_enable/1, lights_info/0,
+         ble_device_info/0]).
 
 -define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
 
@@ -25,6 +26,7 @@
                 button_handle :: pid() | undefined,
                 bluetooth_advertisement=undefined :: pid() | undefined,
                 bluetooth_timer=make_ref() :: reference(),
+                bluetooth_proxy :: ebus:proxy(),
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
@@ -63,6 +65,9 @@ lights_enable(Enable) ->
 lights_info() ->
     gen_server:call(?WORKER, lights_info).
 
+ble_device_info() ->
+    gen_server:call(?WORKER, ble_device_info).
+
 %% ebus_object
 
 start_link(Bus) ->
@@ -80,7 +85,11 @@ init(_) ->
     {ok, LightsOffFile} = application:get_env(lights_off),
     LightsEnable = not filelib:is_regular(LightsOffFile),
 
+    {ok, Bus} = ebus:system(),
+    {ok, Proxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
+
     {ok, #state{ubx_handle=UbxPid,
+                bluetooth_proxy=Proxy,
                 button_handle=ButtonPid,
                 lights_enable=LightsEnable,
                 lights_off_file=LightsOffFile}}.
@@ -172,6 +181,18 @@ handle_call(lights_info, _From, State=#state{}) ->
                  false -> off
              end,
     {reply, Lights, State};
+handle_call(ble_device_info, _From, State=#state{}) ->
+    case ebus_proxy:call(State#state.bluetooth_proxy, ?DBUS_OBJECT_MANAGER("GetManagedObjects")) of
+        {ok, [Map]} ->
+            {reply, {ok, lists:filtermap(fun(#{"org.bluez.Device1" :=
+                                                   D=#{"Adapter" := ?CONFIG_BLE_ADAPTER_PATH}}) ->
+                                                 {true, D};
+                                            (_) -> false end,
+                                         maps:values(Map))}, State};
+        {error, Error} ->
+            {reply, {error, Error}, State}
+    end;
+
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
