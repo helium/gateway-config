@@ -6,7 +6,8 @@
          download_info/0, download_info/1,
          wifi_services/0, wifi_services_online/0,
          advertising_enable/1, advertising_info/0,
-         lights_enable/1, lights_info/0]).
+         lights_enable/1, lights_info/0,
+         ble_device_info/0]).
 
 firmware_version() ->
     case file:read_file("/etc/lsb_release") of
@@ -90,6 +91,9 @@ advertising_enable(Enable) ->
 
 advertising_info() ->
     gateway_config_worker:advertising_info().
+
+ble_device_info() ->
+    gateway_config_worker:ble_device_info().
 
 lights_enable(Enable) ->
     gateway_config_worker:lights_enable(Enable).
