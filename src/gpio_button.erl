@@ -6,8 +6,6 @@
                owner :: pid(),
                gpio :: pid(),
                gpio_num :: pos_integer(),
-               long_press_timer :: reference(),
-               long_press_timeout :: pos_integer(),
                click_timer :: reference(),
                click_timeout :: pos_integer(),
                click_count=0 :: non_neg_integer()
@@ -39,10 +37,8 @@ init([GpioNum, Owner, Options]) ->
     gpio:register_int(Gpio),
     gpio:set_int(Gpio, both),
 
-    LongPressTimeout = proplists:get_value(long_press_timeout, Options, ?DEFAULT_LONG_PRESS_TIMEOUT),
     ClickTimeout = proplists:get_value(click_timeout, Options, ?DEFAULT_CLICK_TIMEOUT),
     {ok, idle, #data{owner=Owner, gpio=Gpio, gpio_num=GpioNum,
-                     long_press_timer=make_ref(), long_press_timeout=LongPressTimeout,
                      click_timer=make_ref(), click_timeout=ClickTimeout
                     }}.
 
@@ -94,19 +90,15 @@ handle_event(EventType, Msg, #data{}) ->
 -spec button_pressed(#data{}) -> #data{}.
 button_pressed(Data=#data{}) ->
     erlang:cancel_timer(Data#data.click_timer),
-    erlang:cancel_timer(Data#data.long_press_timer),
-    Timer = erlang:send_after(Data#data.long_press_timeout, self(), long_press_timeout),
-    Data#data{long_press_timer=Timer}.
+    Data#data{}.
 
 -spec button_idle(#data{}) -> #data{}.
 button_idle(Data=#data{}) ->
     erlang:cancel_timer(Data#data.click_timer),
-    erlang:cancel_timer(Data#data.long_press_timer),
     Data#data{click_count=0}.
 
 -spec button_clicked(#data{}) -> #data{}.
 button_clicked(Data=#data{}) ->
-    erlang:cancel_timer(Data#data.long_press_timer),
     erlang:cancel_timer(Data#data.click_timer),
     Timer = erlang:send_after(Data#data.click_timeout, self(), click_timeout),
     Data#data{click_count=Data#data.click_count + 1, click_timer=Timer}.
