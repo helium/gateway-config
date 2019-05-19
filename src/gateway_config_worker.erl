@@ -151,8 +151,6 @@ handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_POSITION), _Msg, State=#state{}) ->
      [State#state.gps_lock, Position], State};
 handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_DOWNLOADING), _Msg, State=#state{}) ->
     {reply, [bool], [State#state.download_info], State};
-handle_message(?CONFIG_OBJECT(?CONFIG_MEMBER_LIGHTS), _Msg, State=#state{}) ->
-    {reply, [bool], [State#state.lights_enable], State};
 
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
@@ -266,9 +264,7 @@ handle_info(timeout_advertising, State=#state{})  ->
 handle_info({enable_lights, Enable}, State=#state{}) ->
     NewState = State#state{lights_enable=Enable},
     update_lights_off_file(NewState),
-    {noreply, NewState,
-     {signal, ?CONFIG_OBJECT_PATH, ?CONFIG_OBJECT_INTERFACE, ?CONFIG_MEMBER_LIGHTS,
-      [bool], [Enable]}};
+    {noreply, NewState};
 
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
