@@ -41,6 +41,12 @@ init([]) ->
                     restart => permanent
                   },
                   #{
+                    id => gateway_config_led,
+                    start => {gateway_config_led, start_link, [B]},
+                    type => worker,
+                    restart => permanent
+                  },
+                  #{
                     id => gateway_gatt_application,
                     restart => permanent,
                     type => supervisor,

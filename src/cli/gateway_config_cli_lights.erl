@@ -17,7 +17,8 @@ register_all_usage() ->
                    lights_usage(),
                    lights_status_usage(),
                    lights_on_usage(),
-                   lights_off_usage()
+                   lights_off_usage(),
+                   lights_state_usage()
                   ]).
 
 register_all_cmds() ->
@@ -28,7 +29,8 @@ register_all_cmds() ->
                    lights_cmd(),
                    lights_status_cmd(),
                    lights_on_cmd(),
-                   lights_off_cmd()
+                   lights_off_cmd(),
+                   lights_state_cmd()
                   ]).
 
 %%
@@ -41,6 +43,7 @@ lights_usage() ->
       "  status - Get the current lights status.\n"
       "  on     - Turn on lights.\n"
       "  off    - Turn off lights.\n"
+      "  state  - Set the state of the light.\n"
      ]
     ].
 
@@ -115,4 +118,27 @@ lights_off(["lights", "off"], [], []) ->
     gateway_config:lights_enable(false),
     [clique_status:text("ok")];
 lights_off([_, _, _], [], []) ->
+    usage.
+
+
+%%
+%% lights mode
+%%
+
+lights_state_cmd() ->
+    [
+     [["lights", "state", '*'], [], [], fun lights_state/3]
+    ].
+
+lights_state_usage() ->
+    [["lights", "state"],
+     ["lights state \n\n",
+      "  panic - Set panic mode for light.\n"
+     ]
+    ].
+
+lights_state(["lights", "state", StateStr], [], []) ->
+    gateway_config:lights_state(list_to_atom(StateStr)),
+    [clique_status:text(StateStr)];
+lights_state([_, _, _], [], []) ->
     usage.
