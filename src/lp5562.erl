@@ -15,6 +15,7 @@
          read_reg/2,
          write_reg/3,
          compile/1,
+         to_hex/1,
          encode/1]).
 
 -type engine() :: 1 | 2 | 3.
@@ -259,6 +260,10 @@ compile([{branch, Count, Label} | Tail], Labels, Index, Acc) when is_atom(Label)
 compile([Cmd | Tail], Labels, Index, Acc) ->
     compile(Tail, Labels, Index + 1, [encode(Cmd) | Acc]).
 
+to_hex(Bin) when is_binary(Bin) ->
+    lists:flatten([integer_to_list(X,16) || <<X>> <= Bin]);
+to_hex(Cmds) when is_list(Cmds) ->
+    to_hex(compile(Cmds)).
 
 -spec encode(cmd()) -> cmd_bin().
 encode(start) ->
