@@ -261,7 +261,7 @@ compile([Cmd | Tail], Labels, Index, Acc) ->
     compile(Tail, Labels, Index + 1, [encode(Cmd) | Acc]).
 
 to_hex(Bin) when is_binary(Bin) ->
-    lists:flatten([integer_to_list(X,16) || <<X>> <= Bin]);
+    [Y ||<<X:4>> <= Bin, Y <- integer_to_list(X,16)];
 to_hex(Cmds) when is_list(Cmds) ->
     to_hex(compile(Cmds)).
 
