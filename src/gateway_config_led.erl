@@ -27,7 +27,7 @@
          terminate/2]).
 
 -record(state, {
-                handle=undefined :: pid() | undefined,
+                handle=undefined :: lp5562:state() | undefined,
                 state :: term(),
                 enable :: boolean(),
                 off_file :: string(),
@@ -56,12 +56,12 @@ init([Bus]) ->
     OffFile = application:get_env(led, lights_off, "/tmp/gateway_lights_off"),
     Enable = not filelib:is_regular(OffFile),
 
-    LedPid = case file:read_file_info("/dev/i2c-1") of
+    LedPath = application:get_env(led, path, "/sys/bus/i2c/devices/1-0030"),
+    LedPid = case file:read_file_info(LedPath) of
                  {ok, _} ->
                      %% TODO: Replace with check for sysfs driver when
                      %% available
-                     SlaveAddr = application:get_env(led, addr, 16#30),
-                     {ok, Pid} = lp5562:start_link("/dev/i2c-1", SlaveAddr),
+                     {ok, Pid} = lp5562:start_link(LedPath),
                      self() ! init_led,
                      Pid;
               _ ->
@@ -208,12 +208,12 @@ led_set_color(_Color, State=#state{handle=undefined}) ->
     lager:info("Would have set LED: ~p", [_Color]),
     State;
 led_set_color(Color, State) ->
-    lp5562:set_color(State#state.handle, Color),
+    lp5562:set_color(Color, State#state.handle),
     State.
 
 led_blink(_Color, State=#state{handle=undefined}) ->
     lager:info("Would have blinked LED: ~p", [_Color]),
     State;
 led_blink(Color, State=#state{}) ->
-    lp5562:blink(State#state.handle, Color),
+    lp5562:blink(Color, State#state.handle),
     State.

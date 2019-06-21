@@ -2,20 +2,17 @@
 
 %% API exports
 -export([start_link/0,
-         start_link/2,
+         start_link/1,
          set_color/2,
          blink/2]).
 
 %% internal exports
--export([init_device/1,
-         reset_device/1,
-         load_engine/2,
-         write_engine/3,
-         run_engines/2,
-         read_reg/2,
-         write_reg/3,
-         compile/1,
+-export([load_engine/2,
+         select_engine/2,
+         write_engine/2,
+         run_engines/1,
          to_hex/1,
+         compile/1,
          encode/1]).
 
 -type engine() :: 1 | 2 | 3.
@@ -34,106 +31,70 @@
 
 -type cmd_bin() :: <<_:16>>.
 
--define(PROGRAM_LENGTH, 32).
--define(MAX_CURRENT, 100).
+-define(DEFAULT_PATH_DEVICE, "/sys/bus/i2c/devices/1-0030").
+-define(PATH_DEVICE(B, X), B#state.device_base ++ "/" ++ X).
 
-%% ENABLE Register 00h
--define(REG_ENABLE,  16#00).
-%% it takes more 488 us to update ENABLE register
--define(WAIT_ENABLE_DONE, timer:sleep(1)).
--define(EXEC_ENG1_M, 16#30).
--define(EXEC_ENG2_M, 16#0C).
--define(EXEC_ENG3_M, 16#03).
--define(EXEC_M     , 16#3F).
--define(MASTER_ENABLE,   16#40).
--define(LOGARITHMIC_PWM, 16#80).
--define(ENABLE_DEFAULT,	(?MASTER_ENABLE bor ?LOGARITHMIC_PWM)).
+-define(PATH_FIRMWARE, "/sys/class/firmware/lp5562").
+-define(PATH_LOADING, ?PATH_FIRMWARE ++ "/loading").
+-define(PATH_DATA, ?PATH_FIRMWARE ++ "/data").
 
-%% OPMODE Register 01h
--define(REG_OP_MODE, 16#01).
-%% operation mode change needs to be longer than 153 us
--define(WAIT_OP_MODE_DONE, timer:sleep(1)).
--define(MODE_ENG1_M, 16#30).
--define(MODE_ENG2_M, 16#0C).
--define(MODE_ENG3_M, 16#03).
--define(LOAD_ENG1,   16#10).
--define(LOAD_ENG2,   16#04).
--define(LOAD_ENG3,   16#01).
--define(RUN_ENG1,    16#20).
--define(RUN_ENG2,    16#08).
--define(RUN_ENG3,    16#02).
--define(DIRECT_ENG1, 16#30).
--define(DIRECT_ENG2, 16#0C).
--define(DIRECT_ENG3, 16#03).
+-record(state, {
+                device_base :: string()
+               }).
+-type state() :: #state{}.
+-export_type([state/0]).
 
-%% CONFIG Register 08h
--define(REG_CONFIG, 16#08).
--define(PWM_HF,     16#40).
--define(PWRSAVE_EN, 16#20).
--define(CLK_INT,    16#01). %% Internal clock
--define(DEFAULT_CFG, ?CLK_INT bor ?PWM_HF).
-
-%% BRIGHTNESS Registers
--define(REG_R_PWM, 16#04).
--define(REG_G_PWM, 16#03).
--define(REG_B_PWM, 16#02).
--define(REG_W_PWM, 16#0E).
-
-%% CURRENT Registers
--define(REG_R_CURRENT, 16#07).
--define(REG_G_CURRENT, 16#06).
--define(REG_B_CURRENT, 16#05).
--define(REG_W_CURRENT, 16#0F).
-
-%% LEDMAP Register 70h
--define(REG_ENG_SEL,   16#70).
--define(ENG_SEL_PWM,   16#00).
--define(ENG_SEL_RGB,   16#1B). % R:ENG1, G:ENG2, B:ENG3
--define(ENG1_FOR_W,    16#40). % W:ENG1
--define(ENG2_FOR_W,    16#80). % W:ENG2
--define(ENG3_FOR_W,    16#C0). % W:ENG3
-
-%% PROGRAM ENGINE Registers
--define(REG_PROG_MEM_ENG1, 16#10).
--define(REG_PROG_MEM_ENG2, 16#30).
--define(REG_PROG_MEM_ENG3, 16#50).
-
-%% RESET Register 0Dh
--define(REG_RESET, 16#0D).
--define(RESET	 , 16#FF).
+%% echo 1 > /sys/bus/i2c/devices/1-0030/select_engine
+%% echo "RGB" > /sys/bus/i2c/devices/1-0030/engine_mux
+%% echo 1 > /sys/class/firmware/lp5562/loading
+%% echo "4000136313E3A001" > /sys/class/firmware/lp5562/data
+%% echo 0 >  /sys/class/firmware/lp5562/loading
+%% echo 1 > /sys/bus/i2c/devices/1-0030/run_engine
 
 
 start_link() ->
-    start_link("i2c-1", 16#30).
+    start_link("/sys/bus/i2c/devices/1-0030").
 
-start_link(Dev, Addr) ->
-    {ok, Pid} = i2c:start_link(Dev, Addr),
-    init_device(Pid),
-    {ok, Pid}.
+start_link(LedPath) ->
+    State = #state{device_base=LedPath},
+    write("RGB", ?PATH_DEVICE(State, "engine_mux")),
+    {ok, State}.
 
+-spec write(Value::string(), Path::string()) -> ok | {error, term()}.
+write(Str, Path) ->
+    case file:open(Path, [raw, write, binary]) of
+        {ok, Fd} ->
+            case file:write(Fd, Str) of
+                ok -> file:close(Fd);
+                {error, Reason} -> {error, Reason}
+            end;
+        {error, Error} -> {error, Error}
+    end.
 
--spec program_engines(pid(), [{engine(), [cmd()]}]) -> ok.
-program_engines(Ctrl, Progs) ->
+-spec program_engines([{engine(), [cmd()]}], #state{}) -> ok.
+program_engines(Progs, State) ->
     lists:foreach(fun({Engine, Prog}) ->
-                          Bin = compile(Prog),
-                          load_engine(Ctrl, Engine),
-                          write_engine(Ctrl, Engine, Bin)
+                          ProgStr = to_hex(Prog),
+                          select_engine(Engine, State),
+                          load_engine(true, State),
+                          write_engine(ProgStr, State),
+                          load_engine(false, State)
                   end, Progs).
 
-set_color(Ctrl, {R, G, B}) ->
+set_color({R, G, B}, State) ->
     MkProg = fun(Color) ->
                   [{set_pwm, Color}]
              end,
     Progs = [
-             {1,  MkProg(R)},
+             {1,  MkProg(B)},
              {2,  MkProg(G)},
-             {3,  MkProg(B)}
+             {3,  MkProg(R)}
             ],
-    program_engines(Ctrl, Progs),
-    run_engines(Ctrl, [1, 2, 3]).
+    program_engines(Progs, State),
+    run_engines(State).
 
 
-blink(Ctrl, {R, G, B}) ->
+blink({R, G, B}, State) ->
     MkProg = fun(Color) ->
                      case Color of
                          0 ->
@@ -141,101 +102,41 @@ blink(Ctrl, {R, G, B}) ->
                          _ ->
                              [{set_pwm, 0},
                               {label, blink},
-                              {ramp, 300, 100},
-                              {ramp, 300, -100},
+                              {ramp, 250, 255},
+                              {ramp, 250, -255},
                               {branch, 0, blink}
                              ]
                      end
              end,
     Progs = [
-             {1, MkProg(R)},
+             {1, MkProg(B)},
              {2, MkProg(G)},
-             {3, MkProg(B)}
+             {3, MkProg(R)}
              ],
-    program_engines(Ctrl, Progs),
-    run_engines(Ctrl, [1, 2, 3]).
+    program_engines(Progs, State),
+    run_engines(State).
 
 
-write_reg(Ctrl, Reg, Val) ->
-    i2c:write(Ctrl, <<Reg:8, Val:8/unsigned>>).
+select_engine(Engine, State) ->
+    EngineStr = integer_to_list(Engine),
+    Result = write(EngineStr, ?PATH_DEVICE(State, "select_engine")),
+    timer:sleep(100),
+    Result.
 
-read_reg(Ctrl, Reg) ->
-    <<Val:8/unsigned>> = i2c:write_read(Ctrl, <<Reg:8>>, 1),
-    Val.
+load_engine(Load, _State) ->
+    Value = case Load of
+                true -> "1";
+                _ -> "0"
+            end,
+    Result = write(Value, ?PATH_LOADING),
+    timer:sleep(100),
+    Result.
 
-update_reg_bits(Ctrl, Reg, Mask, Val) ->
-    Current = read_reg(Ctrl, Reg),
-    Tmp = Current band (bnot Mask),
-    NewVal = Tmp bor (Val band Mask),
-    write_reg(Ctrl, Reg, NewVal).
+write_engine(ProgStr, _State) ->
+    write(ProgStr, ?PATH_DATA).
 
-init_device(Ctrl) ->
-    write_reg(Ctrl, ?REG_ENABLE, ?ENABLE_DEFAULT),
-    ?WAIT_ENABLE_DONE,
-    write_reg(Ctrl, ?REG_OP_MODE,
-              ?DIRECT_ENG1 bor ?DIRECT_ENG2 bor ?DIRECT_ENG3),
-    ?WAIT_OP_MODE_DONE,
-    write_reg(Ctrl, ?REG_CONFIG, ?DEFAULT_CFG),
-    %% Set max current for each LED
-    write_reg(Ctrl, ?REG_R_CURRENT, ?MAX_CURRENT),
-    write_reg(Ctrl, ?REG_G_CURRENT, ?MAX_CURRENT),
-    write_reg(Ctrl, ?REG_B_CURRENT, ?MAX_CURRENT),
-    write_reg(Ctrl, ?REG_W_CURRENT, ?MAX_CURRENT),
-
-    %% Reset LEDs to off
-    write_reg(Ctrl, ?REG_R_PWM, 0),
-    write_reg(Ctrl, ?REG_G_PWM, 0),
-    write_reg(Ctrl, ?REG_B_PWM, 0),
-    write_reg(Ctrl, ?REG_W_PWM, 0),
-
-    %% Set LED map as RGB engine driven by default
-    write_reg(Ctrl, ?REG_ENG_SEL, ?ENG_SEL_RGB).
-
-reset_device(Ctrl) ->
-    write_reg(Ctrl, ?REG_RESET, ?RESET).
-
-load_engine(Ctrl, Engine) ->
-    {Mask, Val} = case Engine of
-                   1 -> {?MODE_ENG1_M, ?LOAD_ENG1};
-                   2 -> {?MODE_ENG2_M, ?LOAD_ENG2};
-                   3 -> {?MODE_ENG3_M, ?LOAD_ENG3}
-              end,
-    update_reg_bits(Ctrl, ?REG_OP_MODE, Mask, Val),
-    ?WAIT_OP_MODE_DONE.
-
-write_engine(Ctrl, Engine, Bin) ->
-    Base = case Engine of
-               1 -> ?REG_PROG_MEM_ENG1;
-               2 -> ?REG_PROG_MEM_ENG2;
-               3 -> ?REG_PROG_MEM_ENG3
-           end,
-    %% Clear out space
-    lists:foreach(fun(Offset) ->
-                          i2c:write(Ctrl, <<(Base+Offset):8, 16#00>>)
-                  end, lists:seq(0, 31)),
-    i2c:write(Ctrl, <<Base:8, Bin/binary>>).
-
-run_engines(Ctrl, Engines) ->
-    Mode = read_reg(Ctrl, ?REG_OP_MODE),
-    Exec = read_reg(Ctrl, ?REG_ENABLE),
-
-    MaskVal = fun(Engine) ->
-                      case Engine of
-                          1 -> {?MODE_ENG1_M, ?EXEC_ENG1_M, ?RUN_ENG1};
-                          2 -> {?MODE_ENG2_M, ?EXEC_ENG2_M, ?RUN_ENG2};
-                          3 -> {?MODE_ENG3_M, ?EXEC_ENG3_M, ?RUN_ENG3}
-                      end
-              end,
-    {NewMode, NewExec} = lists:foldl(fun(Engine, {M, E}) ->
-                                             {ModeMask, ExecMask, Val} = MaskVal(Engine),
-                                             {(M band bnot ModeMask) bor Val,
-                                              (E band bnot ExecMask) bor Val}
-                                     end, {Mode, Exec}, Engines),
-    write_reg(Ctrl, ?REG_OP_MODE, NewMode),
-    ?WAIT_OP_MODE_DONE,
-    update_reg_bits(Ctrl, ?REG_ENABLE, ?EXEC_M, NewExec),
-    ?WAIT_ENABLE_DONE.
-
+run_engines(State) ->
+    write("1", ?PATH_DEVICE(State, "run_engine")).
 
 %%
 %% Language
