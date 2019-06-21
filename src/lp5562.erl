@@ -4,7 +4,7 @@
 -export([init/0,
          init/1,
          set_color/2,
-         blink/2]).
+         blink/2, blink/3]).
 
 %% internal exports
 -export([load_engine/2,
@@ -93,8 +93,10 @@ set_color({R, G, B}, State) ->
     program_engines(Progs, State),
     run_engines(State).
 
-
 blink({R, G, B}, State) ->
+    blink({R, G, B}, 250, State).
+
+blink({R, G, B}, HalfTime, State) ->
     MkProg = fun(Color) ->
                      case Color of
                          0 ->
@@ -102,8 +104,8 @@ blink({R, G, B}, State) ->
                          _ ->
                              [{set_pwm, 0},
                               {label, blink},
-                              {ramp, 250, 255},
-                              {ramp, 250, -255},
+                              {ramp, HalfTime, 255},
+                              {ramp, HalfTime, -255},
                               {branch, 0, blink}
                              ]
                      end
