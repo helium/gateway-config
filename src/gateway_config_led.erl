@@ -8,10 +8,10 @@
 
 -define(LED_INIT_RETRY_DURATION, 5000).
 
--define(COLOR_RED,    {19,  0,  0}).
--define(COLOR_GREEN,  { 0, 19,  0}).
--define(COLOR_BLUE,   { 0,  0, 19}).
--define(COLOR_ORANGE, {19,  6,  0}).
+-define(COLOR_RED,    {255,   0,   0}).
+-define(COLOR_GREEN,  {  0, 255,   0}).
+-define(COLOR_BLUE,   {  0,   0, 255}).
+-define(COLOR_ORANGE, {255, 255,   0}).
 
 %% API
 -export([lights_enable/1,
