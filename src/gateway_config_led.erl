@@ -57,13 +57,13 @@ init([Bus]) ->
     Enable = not filelib:is_regular(OffFile),
 
     LedPath = application:get_env(led, path, "/sys/bus/i2c/devices/1-0030"),
-    LedPid = case file:read_file_info(LedPath) of
+    LedState = case file:read_file_info(LedPath) of
                  {ok, _} ->
                      %% TODO: Replace with check for sysfs driver when
                      %% available
-                     {ok, Pid} = lp5562:start_link(LedPath),
+                     {ok, LS} = lp5562:init(LedPath),
                      self() ! init_led,
-                     Pid;
+                     LS;
               _ ->
                   lager:warning("No i2c device found, running in stub mode"),
                   undefined
@@ -77,7 +77,7 @@ init([Bus]) ->
                                                          ?DBUS_PROPERTIES(?BLUEZ_MEMBER_PROPERTIES_CHANGED),
                                                          self(), pairable_signal),
 
-    State = #state{handle=LedPid,
+    State = #state{handle=LedState,
                    enable=Enable,
                    off_file=OffFile,
                    state=undefined,

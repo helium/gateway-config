@@ -1,8 +1,8 @@
 -module(lp5562).
 
 %% API exports
--export([start_link/0,
-         start_link/1,
+-export([init/0,
+         init/1,
          set_color/2,
          blink/2]).
 
@@ -52,10 +52,10 @@
 %% echo 1 > /sys/bus/i2c/devices/1-0030/run_engine
 
 
-start_link() ->
-    start_link("/sys/bus/i2c/devices/1-0030").
+init() ->
+    init("/sys/bus/i2c/devices/1-0030").
 
-start_link(LedPath) ->
+init(LedPath) ->
     State = #state{device_base=LedPath},
     write("RGB", ?PATH_DEVICE(State, "engine_mux")),
     {ok, State}.
