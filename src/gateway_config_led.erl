@@ -59,8 +59,6 @@ init([Bus]) ->
     LedPath = application:get_env(led, path, "/sys/bus/i2c/devices/1-0030"),
     LedState = case file:read_file_info(LedPath) of
                  {ok, _} ->
-                     %% TODO: Replace with check for sysfs driver when
-                     %% available
                      {ok, LS} = lp5562:init(LedPath),
                      self() ! init_led,
                      LS;
