@@ -16,10 +16,10 @@
 -export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
          advertising_enable/1, advertising_info/0,
-         lights_enable/1, lights_info/0,
          ble_device_info/0]).
 
 -define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
+
 
 -record(state, {
                 ubx_handle :: pid() | undefined,
@@ -30,9 +30,7 @@
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
-                download_info=false :: boolean(),
-                lights_off_file :: string(),
-                lights_enable :: boolean()
+                download_info=false :: boolean()
                }).
 
 gps_info() ->
@@ -59,12 +57,6 @@ advertising_enable(Enable) ->
 advertising_info() ->
     gen_server:call(?WORKER, advertising_info).
 
-lights_enable(Enable) ->
-    ?WORKER ! {enable_lights, Enable}.
-
-lights_info() ->
-    gen_server:call(?WORKER, lights_info).
-
 ble_device_info() ->
     gen_server:call(?WORKER, ble_device_info).
 
@@ -82,17 +74,12 @@ init(_) ->
     {ok, ButtonArgs} = application:get_env(button),
     ButtonPid = init_button(ButtonArgs),
 
-    {ok, LightsOffFile} = application:get_env(lights_off),
-    LightsEnable = not filelib:is_regular(LightsOffFile),
-
     {ok, Bus} = ebus:system(),
     {ok, Proxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
 
     {ok, #state{ubx_handle=UbxPid,
                 bluetooth_proxy=Proxy,
-                button_handle=ButtonPid,
-                lights_enable=LightsEnable,
-                lights_off_file=LightsOffFile}}.
+                button_handle=ButtonPid}}.
 
 
 init_ubx(Args) ->
@@ -173,12 +160,6 @@ handle_call(advertising_info, _From, State=#state{}) ->
               _ -> on
           end,
     {reply, Adv, State};
-handle_call(lights_info, _From, State=#state{}) ->
-    Lights = case State#state.lights_enable of
-                 true -> on;
-                 false -> off
-             end,
-    {reply, Lights, State};
 handle_call(ble_device_info, _From, State=#state{}) ->
     case ebus_proxy:call(State#state.bluetooth_proxy, ?DBUS_OBJECT_MANAGER("GetManagedObjects")) of
         {ok, [Map]} ->
@@ -260,35 +241,23 @@ handle_info(timeout_advertising, State=#state{})  ->
     handle_info({enable_advertising, false}, State);
 
 
-%% Lights
-handle_info({enable_lights, Enable}, State=#state{}) ->
-    NewState = State#state{lights_enable=Enable},
-    update_lights_off_file(NewState),
-    {noreply, NewState};
-
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
 
-terminate(_Reason, State=#state{ubx_handle=Handle}) ->
+terminate(_Reason, State=#state{ubx_handle=UBXHandle}) ->
     case State#state.bluetooth_advertisement of
         undefined -> ok;
         AdvPid -> (catch ble_advertisement:stop(AdvPid, normal))
     end,
-    case is_pid(Handle) of
-        true -> ubx:stop(Handle, normal);
+    case is_pid(UBXHandle) of
+        true -> ubx:stop(UBXHandle, normal);
         _ -> ok
     end.
-
 
 %%
 %% Internal
 %%
-
-update_lights_off_file(State=#state{lights_enable=true}) ->
-    file:delete(State#state.lights_off_file);
-update_lights_off_file(State=#state{lights_enable=false}) ->
-    file:write_file(State#state.lights_off_file, <<>>).
 
 update_gps_lock(3, State=#state{gps_lock=false}) ->
     %% If we get a lock signal lock
