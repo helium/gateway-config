@@ -86,9 +86,9 @@ set_color({R, G, B}, State) ->
                   [{set_pwm, Color}]
              end,
     Progs = [
-             {1,  MkProg(B)},
+             {1,  MkProg(R)},
              {2,  MkProg(G)},
-             {3,  MkProg(R)}
+             {3,  MkProg(B)}
             ],
     program_engines(Progs, State),
     run_engines(State).
@@ -111,9 +111,9 @@ blink({R, G, B}, HalfTime, State) ->
                      end
              end,
     Progs = [
-             {1, MkProg(B)},
+             {1, MkProg(R)},
              {2, MkProg(G)},
-             {3, MkProg(R)}
+             {3, MkProg(B)}
              ],
     program_engines(Progs, State),
     run_engines(State).
