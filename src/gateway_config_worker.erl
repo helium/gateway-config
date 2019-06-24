@@ -103,7 +103,7 @@ init_ubx(Args) ->
 init_button(Args) ->
     case file:read_file_info("/dev/gpio") of
         {ok, _} ->
-            Gpio = proplists:get_value(gpio, Args, 90),
+            Gpio = proplists:get_value(gpio, Args, 7),
             {ok, Pid} = gpio_button:start_link(Gpio, self()),
             Pid;
         _ ->
