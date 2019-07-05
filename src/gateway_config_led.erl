@@ -146,11 +146,8 @@ handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p", [Msg]),
     {noreply, State}.
 
-terminate(_Reason, State=#state{}) ->
-    case State#state.handle of
-        undefined -> ok;
-        Handle -> i2c:stop(Handle)
-    end.
+terminate(_Reason, #state{}) ->
+    ok.
 
 
 %%
