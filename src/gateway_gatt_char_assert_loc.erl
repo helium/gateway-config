@@ -42,14 +42,14 @@ read_value(State=#state{}, _) ->
 
 write_value(State=#state{}, Bin) ->
     try gateway_gatt_char_assert_loc_pb:decode_msg(Bin, gateway_assert_loc_v1_pb) of
-        #gateway_assert_loc_v1_pb{lat=Lat, lon=Lon, owner=Owner, nonce=Nonce, fee=Fee} ->
+        #gateway_assert_loc_v1_pb{lat=Lat, lon=Lon, owner=Owner, nonce=Nonce, fee=Fee, amount=Amount} ->
             H3Index = h3:from_geo({Lat, Lon}, ?H3_LATLON_RESOLUTION),
             H3String = h3:to_string(H3Index),
             lager:info("Requesting assert_loc_txn for lat/lon/acc: {~p, ~p, ~p} index: ~p",
                        [Lat, Lon, ?H3_LATLON_RESOLUTION, H3String]),
             Value = case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
-                                         [string, string, uint64, uint64],
-                                         [H3String, Owner, Nonce, Fee]) of
+                                         [string, string, uint64, uint64, uint64],
+                                         [H3String, Owner, Nonce, Amount, Fee]) of
                         {ok, [BinTxn]} ->  BinTxn;
                         {error, Error} ->
                             lager:warning("Failed to get assert_loc txn: ~p", [Error]),
@@ -112,7 +112,7 @@ success_test() ->
     meck:new(ebus_proxy, [passthrough]),
     meck:expect(ebus_proxy, call,
                 fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
-                    [string, string, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Fee]) ->
+                    [string, string, uint64, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Amount, _Fee]) ->
                         {ok, [BinTxn]}
                 end),
     meck:new(gatt_characteristic, [passthrough]),
@@ -148,7 +148,7 @@ error_test() ->
     meck:new(ebus_proxy, [passthrough]),
     meck:expect(ebus_proxy, call,
                 fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
-                    [string, string, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Fee]) ->
+                    [string, string, uint64, uint64, uint64], [_Loc, _OwnerB58, _Nonce, _Amount, _Fee]) ->
                         ErrorName = get({?MODULE, meck_error}),
                         {error, ErrorName}
                 end),
