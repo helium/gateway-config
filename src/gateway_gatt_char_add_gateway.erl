@@ -40,10 +40,11 @@ read_value(State=#state{}, _) ->
 
 write_value(State=#state{}, Bin) ->
     try gateway_gatt_char_add_gateway_pb:decode_msg(Bin, gateway_add_gateway_v1_pb) of
-        #gateway_add_gateway_v1_pb{owner=OwnerB58, fee=Fee, amount=Amount} ->
-            lager:info("Requesting add_gateway txn for owner: ~p" , [OwnerB58]),
+        #gateway_add_gateway_v1_pb{owner=OwnerB58, fee=Fee, amount=Amount, payer=PayerB58} ->
+            lager:info("Requesting add_gateway txn for owner: ~p, payer: ~p" , [OwnerB58, PayerB58]),
             Value = case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-                                         [string, uint64, uint64], [OwnerB58, Fee, Amount]) of
+                                         [string, uint64, uint64, string],
+                                         [OwnerB58, Fee, Amount, PayerB58]) of
                         {ok, [BinTxn]} ->  BinTxn;
                         {error, Error} ->
                             lager:warning("Failed to get add_gateway txn: ~p", [Error]),
@@ -105,13 +106,14 @@ success_test() ->
     Owner = "owner",
     Fee = 1,
     Amount = 10,
+    Payer = "payer",
     BinTxn = <<"txn">>,
 
     meck:new(ebus_proxy, [passthrough]),
     meck:expect(ebus_proxy, call,
                 fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-                    [string, uint64, uint64],
-                    [B, F, A]) when B == Owner, F == Fee, A == Amount ->
+                    [string, uint64, uint64, string],
+                    [B, F, A, P]) when B == Owner, F == Fee, A == Amount, P == Payer ->
                         {ok, [BinTxn]}
                 end),
     meck:new(gatt_characteristic, [passthrough]),
@@ -126,7 +128,7 @@ success_test() ->
     %% Calling start_notify again has no effect
     ?assertEqual({ok, Char1}, ?MODULE:start_notify(Char1)),
 
-    Msg = #gateway_add_gateway_v1_pb{owner=Owner, fee=Fee, amount=Amount},
+    Msg = #gateway_add_gateway_v1_pb{owner=Owner, fee=Fee, amount=Amount, payer=Payer},
     EncodedMsg = gateway_gatt_char_add_gateway_pb:encode_msg(Msg),
     {ok, Char2} = ?MODULE:write_value(Char1, EncodedMsg),
     ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2, #{})),
@@ -148,8 +150,8 @@ error_test() ->
     meck:new(ebus_proxy, [passthrough]),
     meck:expect(ebus_proxy, call,
                 fun(proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-                    [string, uint64, uint64],
-                    [B, _Fee, _Ownre]) ->
+                    [string, uint64, uint64, string],
+                    [B, _Fee, _Owner, _Payer]) ->
                         {error, B}
                 end),
 

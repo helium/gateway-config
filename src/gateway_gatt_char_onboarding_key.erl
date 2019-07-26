@@ -46,7 +46,7 @@ read_value(State=#state{}, _) ->
 
 uuid_test() ->
     {ok, _, Char} = ?MODULE:init("", [proxy]),
-    ?assertEqual(?UUID_GATEWAY_GATT_CHAR_OBOARDING_KEY, ?MODULE:uuid(Char)),
+    ?assertEqual(?UUID_GATEWAY_GATT_CHAR_ONBOARDING_KEY, ?MODULE:uuid(Char)),
     ok.
 
 flags_test() ->
@@ -73,7 +73,7 @@ error_test() ->
     {ok, _, Char} = ?MODULE:init("", [proxy]),
 
     meck:expect(ebus_proxy, call,
-                fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_ONBARDING_KEY)) ->
+                fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_ONBOARDING_KEY)) ->
                         ErrorName = get({?MODULE, meck_error}),
                         {error, ErrorName}
                 end),

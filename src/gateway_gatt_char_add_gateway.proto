@@ -4,4 +4,5 @@ message add_gateway_v1 {
     string owner = 1;
     uint64 amount = 2;
     uint64 fee = 3;
+    string payer = 4;
 }
