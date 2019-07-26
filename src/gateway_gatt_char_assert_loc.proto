@@ -7,4 +7,5 @@ message assert_loc_v1 {
     uint64 nonce = 4;
     uint64 fee = 5;
     uint64 amount = 6;
+    string payer = 7;
 }
