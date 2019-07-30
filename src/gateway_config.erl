@@ -32,7 +32,7 @@ firmware_version() ->
 serial_number() ->
     {ok, S} = inet:getifaddrs(),
     case lists:filter(fun({K, _}) ->
-                              lists:prefix("eth", K) orelse
+                              lists:prefix("wlan", K) orelse
                                   lists:prefix("en", K)
                       end, S) of
         [] ->
