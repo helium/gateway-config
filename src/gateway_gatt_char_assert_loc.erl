@@ -37,6 +37,8 @@ init(Path, [Proxy]) ->
         ],
     {ok, Descriptors, #state{path=Path, proxy=Proxy}}.
 
+read_value(State=#state{value=Value}, #{"offset" := Offset}) ->
+    {ok, binary:part(Value, Offset, byte_size (Value) - Offset), State};
 read_value(State=#state{}, _) ->
     {ok, State#state.value, State}.
 
