@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message p2p_status_v1 {
+    map<string, bool>status = 1;
+}

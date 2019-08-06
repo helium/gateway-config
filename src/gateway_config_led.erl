@@ -2,6 +2,7 @@
 
 -include_lib("gatt/include/gatt.hrl").
 -include_lib("ebus/include/ebus.hrl").
+-include("gateway_config.hrl").
 
 -define(BLUEZ_OBJECT_PATH, "/org/bluez/hci0").
 -define(BLUEZ_MEMBER_PROPERTIES_CHANGED, "PropertiesChanged").
@@ -18,7 +19,10 @@
          lights_state/1,
          lights_info/0]).
 
-%% gen_sefver
+%% internal
+-export([update_p2p_status/1]).
+
+%% gen_server
 -export([start_link/1,
          init/1,
          handle_info/2,
@@ -31,7 +35,6 @@
                 state :: term(),
                 enable :: boolean(),
                 off_file :: string(),
-                online_signal :: ebus:filter_id(),
                 pairable_signal :: ebus:filter_id()
                }).
 
@@ -43,6 +46,9 @@ lights_info() ->
 
 lights_state(State) ->
     ?MODULE ! {lights_state, State}.
+
+update_p2p_status(Status) ->
+    ?MODULE ! {p2p_status, Status}.
 
 
 start_link(Bus) ->
@@ -67,8 +73,6 @@ init([Bus]) ->
                   undefined
           end,
 
-    {ok, OnlineSignal} = connman:register_state_notify(self(), online_signal),
-
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
     {ok, PairableSignal} = ebus_proxy:add_signal_handler(BluezProxy,
                                                          ?BLUEZ_OBJECT_PATH,
@@ -79,7 +83,6 @@ init([Bus]) ->
                    enable=Enable,
                    off_file=OffFile,
                    state=undefined,
-                   online_signal=OnlineSignal,
                    pairable_signal=PairableSignal},
 
     case Enable of
@@ -106,16 +109,6 @@ handle_cast(Msg, State) ->
 
 handle_info(init_led, State=#state{}) ->
     {noreply, update_led(init_led_state(State), State)};
-handle_info({ebus_signal, _Path, Signal, Msg}, State=#state{online_signal=Signal}) ->
-    case ebus_message:args(Msg) of
-        {ok, ["State", "online"]} ->
-            {noreply, update_led(online, State)};
-        {ok, ["State", _]} ->
-            %% Anything else is considered offline
-            {noreply, update_led(offline, State)};
-        {error, _Error} ->
-            {noreply, State}
-    end;
 handle_info({ebus_signal, _Path, Signal, Msg}, State=#state{pairable_signal=Signal}) ->
     case ebus_message:args(Msg) of
         {ok, [?GATT_ADVERTISING_MANAGER_IFACE, #{"ActiveInstances" := Value}, _]} ->
@@ -142,6 +135,10 @@ handle_info({lights_state, LedState}, State=#state{}) ->
     NewState = update_led(LedState, State),
     {noreply, NewState};
 
+handle_info({p2p_status, Status}, State=#state{}) ->
+    NewState = update_led(p2p_led_state(Status), State),
+    {noreply, NewState};
+
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p", [Msg]),
     {noreply, State}.
@@ -153,6 +150,16 @@ terminate(_Reason, #state{}) ->
 %%
 %% Internal
 %%
+
+p2p_led_state(undefined) ->
+    lager:info("Failed to get p2p state"),
+    erlang:send_after(?LED_INIT_RETRY_DURATION, self(), init_led),
+    error;
+p2p_led_state(StatusList) ->
+    case lists:all(fun({_, S}) -> S end, StatusList) of
+        true -> online;
+        _ -> offline
+    end.
 
 update_off_file(State=#state{enable=true}) ->
     file:delete(State#state.off_file),
@@ -168,13 +175,7 @@ init_led_state(#state{enable=false}) ->
 init_led_state(#state{state=panic}) ->
     panic;
 init_led_state(_State) ->
-    case connman:state() of
-        {ok, S} -> S;
-        {error, Error} ->
-            lager:info("Failed to get connected state: ~p", [Error]),
-            erlang:send_after(?LED_INIT_RETRY_DURATION, self(), init_led),
-            error
-    end.
+    p2p_led_state(gateway_config:p2p_status()).
 
 
 -spec update_led(LedState::term(), #state{}) -> #state{}.

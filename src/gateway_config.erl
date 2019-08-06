@@ -7,6 +7,7 @@
          wifi_services/0, wifi_services_online/0,
          advertising_enable/1, advertising_info/0,
          lights_enable/1, lights_state/1, lights_info/0,
+         p2p_status/0,
          ble_device_info/0]).
 
 firmware_version() ->
@@ -103,3 +104,7 @@ lights_state(State) ->
 
 lights_info() ->
     gateway_config_led:lights_info().
+
+
+p2p_status() ->
+    gateway_config_worker:p2p_status().

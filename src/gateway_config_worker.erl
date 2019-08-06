@@ -6,7 +6,6 @@
 -define(APPLICATION, gateway_config).
 
 -include("gateway_config.hrl").
--include("gateway_gatt.hrl").
 -include_lib("gatt/include/gatt.hrl").
 -include_lib("ebus/include/ebus.hrl").
 
@@ -16,9 +15,11 @@
 -export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
          advertising_enable/1, advertising_info/0,
+         p2p_status/0,
          ble_device_info/0]).
 
 -define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
+-define(P2P_STATUS_TIMEOUT, 30 * 1000).
 
 
 -record(state, {
@@ -27,6 +28,9 @@
                 bluetooth_advertisement=undefined :: pid() | undefined,
                 bluetooth_timer=make_ref() :: reference(),
                 bluetooth_proxy :: ebus:proxy(),
+                miner_proxy :: ebus:proxy(),
+                p2p_timer=make_ref() :: reference(),
+                p2p_status=undefined :: undefined | ok | not_connected | not_dialable | not_synced,
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
@@ -60,6 +64,9 @@ advertising_info() ->
 ble_device_info() ->
     gen_server:call(?WORKER, ble_device_info).
 
+p2p_status() ->
+    gen_server:call(?WORKER, p2p_status).
+
 %% ebus_object
 
 start_link(Bus) ->
@@ -75,10 +82,14 @@ init(_) ->
     ButtonPid = init_button(ButtonArgs),
 
     {ok, Bus} = ebus:system(),
-    {ok, Proxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
+    {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
+    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
 
+    self() ! timeout_p2p_status,
     {ok, #state{ubx_handle=UbxPid,
-                bluetooth_proxy=Proxy,
+                bluetooth_proxy=BluezProxy,
+                miner_proxy=MinerProxy,
+                p2p_status=undefined,
                 button_handle=ButtonPid}}.
 
 
@@ -240,7 +251,22 @@ handle_info(timeout_advertising, State=#state{})  ->
     lager:info("Timeout advertising"),
     handle_info({enable_advertising, false}, State);
 
-
+%% P2P Status
+handle_info(timeout_p2p_status, State=#state{}) ->
+    Status = case ebus_proxy:call(State#state.miner_proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
+                 {ok, [Result]} -> Result;
+                 {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
+                     lager:warning("Miner not ready to get status, setting undefined"),
+                     undefined;
+                 {error, Error} ->
+                     lager:warning("Failed to get p2p status, assuming undefined: ~p", [Error]),
+                     undefined
+             end,
+    %% Hack to notify the one pid we know that needs it. Gatt will
+    %% request it as needed.
+    gateway_config_led:update_p2p_status(Status),
+    Timer = erlang:send_after(?P2P_STATUS_TIMEOUT, self(), timeout_p2p_status),
+    {noreply, State#state{p2p_timer=Timer, p2p_status=Status}};
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
