@@ -7,8 +7,6 @@
 -define(BLUEZ_OBJECT_PATH, "/org/bluez/hci0").
 -define(BLUEZ_MEMBER_PROPERTIES_CHANGED, "PropertiesChanged").
 
--define(LED_INIT_RETRY_DURATION, 5000).
-
 -define(COLOR_RED,    {255,   0,   0}).
 -define(COLOR_GREEN,  {  0, 255,   0}).
 -define(COLOR_BLUE,   {  0,   0, 255}).
@@ -18,9 +16,6 @@
 -export([lights_enable/1,
          lights_state/1,
          lights_info/0]).
-
-%% internal
--export([update_p2p_status/1]).
 
 %% gen_server
 -export([start_link/1,
@@ -46,10 +41,6 @@ lights_info() ->
 
 lights_state(State) ->
     ?MODULE ! {lights_state, State}.
-
-update_p2p_status(Status) ->
-    ?MODULE ! {p2p_status, Status}.
-
 
 start_link(Bus) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [Bus], []).
@@ -135,7 +126,7 @@ handle_info({lights_state, LedState}, State=#state{}) ->
     NewState = update_led(LedState, State),
     {noreply, NewState};
 
-handle_info({p2p_status, Status}, State=#state{}) ->
+handle_info({diagnostics, Status}, State=#state{}) ->
     NewState = update_led(p2p_led_state(Status), State),
     {noreply, NewState};
 
@@ -151,12 +142,11 @@ terminate(_Reason, #state{}) ->
 %% Internal
 %%
 
-p2p_led_state(undefined) ->
-    lager:info("Failed to get p2p state"),
-    erlang:send_after(?LED_INIT_RETRY_DURATION, self(), init_led),
-    error;
+-spec p2p_led_state([{string(), boolean()}]) -> online | offline.
 p2p_led_state(StatusList) ->
-    case lists:all(fun({_, S}) -> S end, StatusList) of
+    case lists:all(fun(Key) ->
+                      proplists:get_bool(Key, StatusList)
+                   end, ["connected", "dialable"]) of
         true -> online;
         _ -> offline
     end.
@@ -175,7 +165,9 @@ init_led_state(#state{enable=false}) ->
 init_led_state(#state{state=panic}) ->
     panic;
 init_led_state(_State) ->
-    p2p_led_state(gateway_config:p2p_status()).
+    %% If we're waiting to be online we check p2p status to get the
+    %% online/offline value
+    p2p_led_state(gateway_config:diagnostics()).
 
 
 -spec update_led(LedState::term(), #state{}) -> #state{}.

@@ -33,5 +33,8 @@ typecheck:
 release:
 	$(REBAR) as prod release -n gateway_config
 
+devrel:
+	$(REBAR) as dev release
+
 doc:
 	$(REBAR) edoc
