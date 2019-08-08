@@ -145,7 +145,7 @@ terminate(_Reason, #state{}) ->
 -spec p2p_led_state([{string(), boolean()}]) -> online | offline.
 p2p_led_state(StatusList) ->
     case lists:all(fun(Key) ->
-                      proplists:get_bool(Key, StatusList)
+                      proplists:get_value(Key, StatusList, "no") == "yes"
                    end, ["connected", "dialable"]) of
         true -> online;
         _ -> offline

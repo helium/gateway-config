@@ -33,7 +33,7 @@ typecheck:
 release:
 	$(REBAR) as prod release -n gateway_config
 
-devrel:
+devrelease:
 	$(REBAR) as dev release
 
 doc:
