@@ -12,6 +12,8 @@
 -define(COLOR_BLUE,   {  0,   0, 255}).
 -define(COLOR_ORANGE, {255, 255,   0}).
 
+-define(DIALABLE_TIMEOUT, 60 * 1000).
+
 %% API
 -export([lights_enable/1,
          lights_state/1,
@@ -30,7 +32,9 @@
                 state :: term(),
                 enable :: boolean(),
                 off_file :: string(),
-                pairable_signal :: ebus:filter_id()
+                pairable_signal :: ebus:filter_id(),
+                cached_dialable = false :: boolean(),
+                dialable_timeout = make_ref() :: reference()
                }).
 
 lights_enable(Enable) ->
@@ -126,9 +130,15 @@ handle_info({lights_state, LedState}, State=#state{}) ->
     NewState = update_led(LedState, State),
     {noreply, NewState};
 
-handle_info({diagnostics, Status}, State=#state{}) ->
-    NewState = update_led(p2p_led_state(Status), State),
-    {noreply, NewState};
+handle_info({diagnostics, Diagnostics}, State=#state{}) ->
+    State1 = update_cached_dialable(Diagnostics, State),
+    State2 = update_led(p2p_led_state(Diagnostics, State1), State1),
+    {noreply, State2};
+handle_info(dialable_timeout, State=#state{}) ->
+    %% On dialable timeout we stop relying on the cache and let the
+    %% actual diagnostic take over the dialable value.
+    {noreply, State#state{cached_dialable=false}};
+
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p", [Msg]),
@@ -142,12 +152,34 @@ terminate(_Reason, #state{}) ->
 %% Internal
 %%
 
--spec p2p_led_state([{string(), boolean()}]) -> online | offline.
-p2p_led_state(StatusList) ->
-    case lists:all(fun(Key) ->
-                      proplists:get_value(Key, StatusList, "no") == "yes"
-                   end, ["connected", "dialable"]) of
-        true -> online;
+get_dialable(Diagnostics) ->
+    proplists:get_value("dialable", Diagnostics, "no") == "yes".
+
+get_connected(Diagnostics) ->
+    proplists:get_value("connected", Diagnostics, "no") == "yes".
+
+%% When the diagnostics state that this node is dialable we promote
+%% that to cached_dialable and kick the timeout so that this dialable
+%% state lasts for a while.
+-spec update_cached_dialable([{string(), string()}], #state{}) -> #state{}.
+update_cached_dialable(Diagnostics, State=#state{}) ->
+    case get_dialable(Diagnostics) of
+        true ->
+            erlang:cancel_timer(State#state.dialable_timeout),
+            Timer = erlang:send_after(?DIALABLE_TIMEOUT, self(), dialable_timeout),
+            State#state{cached_dialable=true, dialable_timeout=Timer};
+        false ->
+            State
+    end.
+
+-spec p2p_led_state([{string(), boolean()}], #state{}) -> online | offline.
+p2p_led_state(Diagnostics, State) ->
+    %% The node is only onlike if it is connected and dialable. When
+    %% not dialable we add some hysteresis with a cache since dialable
+    %% can happen regulary with proxied connections.
+    case {get_connected(Diagnostics), get_dialable(Diagnostics), State#state.cached_dialable} of
+        {true, false, true} ->  online;
+        {true, true, _} -> online;
         _ -> offline
     end.
 
@@ -164,10 +196,10 @@ init_led_state(#state{enable=false}) ->
     disabled;
 init_led_state(#state{state=panic}) ->
     panic;
-init_led_state(_State) ->
+init_led_state(State) ->
     %% If we're waiting to be online we check p2p status to get the
     %% online/offline value
-    p2p_led_state(gateway_config:diagnostics()).
+    p2p_led_state(gateway_config:diagnostics(), State).
 
 
 -spec update_led(LedState::term(), #state{}) -> #state{}.
