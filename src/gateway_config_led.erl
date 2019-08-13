@@ -2,23 +2,24 @@
 
 -include_lib("gatt/include/gatt.hrl").
 -include_lib("ebus/include/ebus.hrl").
+-include("gateway_config.hrl").
 
 -define(BLUEZ_OBJECT_PATH, "/org/bluez/hci0").
 -define(BLUEZ_MEMBER_PROPERTIES_CHANGED, "PropertiesChanged").
-
--define(LED_INIT_RETRY_DURATION, 5000).
 
 -define(COLOR_RED,    {255,   0,   0}).
 -define(COLOR_GREEN,  {  0, 255,   0}).
 -define(COLOR_BLUE,   {  0,   0, 255}).
 -define(COLOR_ORANGE, {255, 255,   0}).
 
+-define(DIALABLE_TIMEOUT, 60 * 1000).
+
 %% API
 -export([lights_enable/1,
          lights_state/1,
          lights_info/0]).
 
-%% gen_sefver
+%% gen_server
 -export([start_link/1,
          init/1,
          handle_info/2,
@@ -31,8 +32,9 @@
                 state :: term(),
                 enable :: boolean(),
                 off_file :: string(),
-                online_signal :: ebus:filter_id(),
-                pairable_signal :: ebus:filter_id()
+                pairable_signal :: ebus:filter_id(),
+                cached_dialable = false :: boolean(),
+                dialable_timeout = make_ref() :: reference()
                }).
 
 lights_enable(Enable) ->
@@ -43,7 +45,6 @@ lights_info() ->
 
 lights_state(State) ->
     ?MODULE ! {lights_state, State}.
-
 
 start_link(Bus) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [Bus], []).
@@ -67,8 +68,6 @@ init([Bus]) ->
                   undefined
           end,
 
-    {ok, OnlineSignal} = connman:register_state_notify(self(), online_signal),
-
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
     {ok, PairableSignal} = ebus_proxy:add_signal_handler(BluezProxy,
                                                          ?BLUEZ_OBJECT_PATH,
@@ -79,7 +78,6 @@ init([Bus]) ->
                    enable=Enable,
                    off_file=OffFile,
                    state=undefined,
-                   online_signal=OnlineSignal,
                    pairable_signal=PairableSignal},
 
     case Enable of
@@ -106,16 +104,6 @@ handle_cast(Msg, State) ->
 
 handle_info(init_led, State=#state{}) ->
     {noreply, update_led(init_led_state(State), State)};
-handle_info({ebus_signal, _Path, Signal, Msg}, State=#state{online_signal=Signal}) ->
-    case ebus_message:args(Msg) of
-        {ok, ["State", "online"]} ->
-            {noreply, update_led(online, State)};
-        {ok, ["State", _]} ->
-            %% Anything else is considered offline
-            {noreply, update_led(offline, State)};
-        {error, _Error} ->
-            {noreply, State}
-    end;
 handle_info({ebus_signal, _Path, Signal, Msg}, State=#state{pairable_signal=Signal}) ->
     case ebus_message:args(Msg) of
         {ok, [?GATT_ADVERTISING_MANAGER_IFACE, #{"ActiveInstances" := Value}, _]} ->
@@ -142,6 +130,16 @@ handle_info({lights_state, LedState}, State=#state{}) ->
     NewState = update_led(LedState, State),
     {noreply, NewState};
 
+handle_info({diagnostics, Diagnostics}, State=#state{}) ->
+    State1 = update_cached_dialable(Diagnostics, State),
+    State2 = update_led(p2p_led_state(Diagnostics, State1), State1),
+    {noreply, State2};
+handle_info(dialable_timeout, State=#state{}) ->
+    %% On dialable timeout we stop relying on the cache and let the
+    %% actual diagnostic take over the dialable value.
+    {noreply, State#state{cached_dialable=false}};
+
+
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p", [Msg]),
     {noreply, State}.
@@ -153,6 +151,37 @@ terminate(_Reason, #state{}) ->
 %%
 %% Internal
 %%
+
+get_dialable(Diagnostics) ->
+    proplists:get_value("dialable", Diagnostics, "no") == "yes".
+
+get_connected(Diagnostics) ->
+    proplists:get_value("connected", Diagnostics, "no") == "yes".
+
+%% When the diagnostics state that this node is dialable we promote
+%% that to cached_dialable and kick the timeout so that this dialable
+%% state lasts for a while.
+-spec update_cached_dialable([{string(), string()}], #state{}) -> #state{}.
+update_cached_dialable(Diagnostics, State=#state{}) ->
+    case get_dialable(Diagnostics) of
+        true ->
+            erlang:cancel_timer(State#state.dialable_timeout),
+            Timer = erlang:send_after(?DIALABLE_TIMEOUT, self(), dialable_timeout),
+            State#state{cached_dialable=true, dialable_timeout=Timer};
+        false ->
+            State
+    end.
+
+-spec p2p_led_state([{string(), boolean()}], #state{}) -> online | offline.
+p2p_led_state(Diagnostics, State) ->
+    %% The node is only onlike if it is connected and dialable. When
+    %% not dialable we add some hysteresis with a cache since dialable
+    %% can happen regulary with proxied connections.
+    case {get_connected(Diagnostics), get_dialable(Diagnostics), State#state.cached_dialable} of
+        {true, false, true} ->  online;
+        {true, true, _} -> online;
+        _ -> offline
+    end.
 
 update_off_file(State=#state{enable=true}) ->
     file:delete(State#state.off_file),
@@ -167,14 +196,10 @@ init_led_state(#state{enable=false}) ->
     disabled;
 init_led_state(#state{state=panic}) ->
     panic;
-init_led_state(_State) ->
-    case connman:state() of
-        {ok, S} -> S;
-        {error, Error} ->
-            lager:info("Failed to get connected state: ~p", [Error]),
-            erlang:send_after(?LED_INIT_RETRY_DURATION, self(), init_led),
-            error
-    end.
+init_led_state(State) ->
+    %% If we're waiting to be online we check p2p status to get the
+    %% online/offline value
+    p2p_led_state(gateway_config:diagnostics(), State).
 
 
 -spec update_led(LedState::term(), #state{}) -> #state{}.
