@@ -34,6 +34,7 @@ init(Path, _) ->
          {gatt_descriptor_pf, 1, [opaque]}
         ],
     gateway_config:diagnostics_join(self()),
+    self() ! {diagnostics_char, Path},
     {ok, Descriptors,
      #state{path=Path}}.
 
