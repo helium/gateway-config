@@ -269,13 +269,17 @@ handle_info(timeout_advertising, State=#state{})  ->
 
 %% P2P Status
 handle_info(timeout_diagnostics, State=#state{}) ->
-    P2PStatus = case ebus_proxy:call(State#state.miner_proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
+    ebus_proxy:call_async(State#state.miner_proxy, {self(), handle_p2p_status},
+                          ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)),
+    {noreply, State};
+handle_info({handle_p2p_status, Msg}, State=#state{}) ->
+    P2PStatus = case Msg of
                     {ok, [Result]} -> Result;
                     {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
-                        lager:debug("Miner not ready to get p2p status"),
+                        lager:info("Miner not ready to get p2p status"),
                         [];
                     {error, Error} ->
-                        lager:warning("Failed to get p2p status: ~p", [Error]),
+                        lager:notice("Failed to get p2p status: ~p", [Error]),
                         []
                 end,
     NewDiagnostics = lists:foldl(fun({Key, Val}, Acc) ->
