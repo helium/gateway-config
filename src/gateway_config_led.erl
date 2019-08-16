@@ -13,6 +13,8 @@
 -define(COLOR_ORANGE, {255, 255,   0}).
 
 -define(DIALABLE_TIMEOUT, 60 * 1000).
+%% How often to go fetch diagnostics.
+-define(DIAGNOSTICS_TIMEOUT, 30 * 1000).
 
 %% API
 -export([lights_enable/1,
@@ -33,6 +35,9 @@
                 enable :: boolean(),
                 off_file :: string(),
                 pairable_signal :: ebus:filter_id(),
+                miner_proxy :: ebus:proxy(),
+                diagnostics = [] :: [{string(), string()}],
+                diagnostics_timeout = make_ref() :: reference(),
                 cached_dialable = false :: boolean(),
                 dialable_timeout = make_ref() :: reference()
                }).
@@ -74,11 +79,15 @@ init([Bus]) ->
                                                          ?DBUS_PROPERTIES(?BLUEZ_MEMBER_PROPERTIES_CHANGED),
                                                          self(), pairable_signal),
 
+    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
+
     State = #state{handle=LedState,
                    enable=Enable,
                    off_file=OffFile,
                    state=undefined,
-                   pairable_signal=PairableSignal},
+                   pairable_signal=PairableSignal,
+                   miner_proxy=MinerProxy
+                  },
 
     case Enable of
         true -> self() ! init_led;
@@ -103,7 +112,9 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(init_led, State=#state{}) ->
-    {noreply, update_led(init_led_state(State), State)};
+    %% Don't update diagnostics for a cycle to give the system some time to settle
+    DiagnosticsTimer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), diagnostics_timeout),
+    {noreply, update_led(init_led_state(State), State#state{diagnostics_timeout=DiagnosticsTimer})};
 handle_info({ebus_signal, _Path, Signal, Msg}, State=#state{pairable_signal=Signal}) ->
     case ebus_message:args(Msg) of
         {ok, [?GATT_ADVERTISING_MANAGER_IFACE, #{"ActiveInstances" := Value}, _]} ->
@@ -130,10 +141,12 @@ handle_info({lights_state, LedState}, State=#state{}) ->
     NewState = update_led(LedState, State),
     {noreply, NewState};
 
-handle_info({diagnostics, Diagnostics}, State=#state{}) ->
-    State1 = update_cached_dialable(Diagnostics, State),
-    State2 = update_led(p2p_led_state(Diagnostics, State1), State1),
-    {noreply, State2};
+handle_info(diagnostics_timeout, State=#state{}) ->
+    Diagnostics = gateway_config:diagnostics(State#state.miner_proxy),
+    State1 = update_cached_dialable(State#state{diagnostics=Diagnostics}),
+    State2 = update_led(p2p_led_state(State1), State1),
+    DiagnosticsTimer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), diagnostics_timeout),
+    {noreply, State2#state{diagnostics_timeout=DiagnosticsTimer}};
 handle_info(dialable_timeout, State=#state{}) ->
     %% On dialable timeout we stop relying on the cache and let the
     %% actual diagnostic take over the dialable value.
@@ -161,9 +174,9 @@ get_connected(Diagnostics) ->
 %% When the diagnostics state that this node is dialable we promote
 %% that to cached_dialable and kick the timeout so that this dialable
 %% state lasts for a while.
--spec update_cached_dialable([{string(), string()}], #state{}) -> #state{}.
-update_cached_dialable(Diagnostics, State=#state{}) ->
-    case get_dialable(Diagnostics) of
+-spec update_cached_dialable(#state{}) -> #state{}.
+update_cached_dialable(State=#state{}) ->
+    case get_dialable(State#state.diagnostics) of
         true ->
             erlang:cancel_timer(State#state.dialable_timeout),
             Timer = erlang:send_after(?DIALABLE_TIMEOUT, self(), dialable_timeout),
@@ -172,8 +185,8 @@ update_cached_dialable(Diagnostics, State=#state{}) ->
             State
     end.
 
--spec p2p_led_state([{string(), boolean()}], #state{}) -> online | offline.
-p2p_led_state(Diagnostics, State) ->
+-spec p2p_led_state(#state{}) -> online | offline.
+p2p_led_state(State=#state{diagnostics=Diagnostics}) ->
     %% The node is only onlike if it is connected and dialable. When
     %% not dialable we add some hysteresis with a cache since dialable
     %% can happen regulary with proxied connections.
@@ -199,7 +212,7 @@ init_led_state(#state{state=panic}) ->
 init_led_state(State) ->
     %% If we're waiting to be online we check p2p status to get the
     %% online/offline value
-    p2p_led_state(gateway_config:diagnostics(), State).
+    p2p_led_state(State).
 
 
 -spec update_led(LedState::term(), #state{}) -> #state{}.

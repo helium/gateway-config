@@ -15,11 +15,9 @@
 -export([gps_info/0, gps_sat_info/0, gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
          advertising_enable/1, advertising_info/0,
-         diagnostics_join/1, diagnostics_leave/1, diagnostics/0, diagnostics_group/0,
          ble_device_info/0]).
 
 -define(ADVERTISING_TIMEOUT, 5 * 60 * 1000).
--define(DIAGNOSTICS_TIMEOUT, 30 * 1000).
 
 
 -record(state, {
@@ -28,9 +26,7 @@
                 bluetooth_advertisement=undefined :: pid() | undefined,
                 bluetooth_timer=make_ref() :: reference(),
                 bluetooth_proxy :: ebus:proxy(),
-                miner_proxy :: ebus:proxy(),
                 p2p_timer=make_ref() :: reference(),
-                diagnostics=[] :: [{string(), string()}],
                 gps_lock=false :: boolean(),
                 gps_info=#{} :: ubx:nav_pvt()| #{},
                 gps_sat_info=[] :: [ubx:nav_sat()],
@@ -64,18 +60,6 @@ advertising_info() ->
 ble_device_info() ->
     gen_server:call(?WORKER, ble_device_info).
 
-diagnostics() ->
-    gen_server:call(?WORKER, diagnostics).
-
-diagnostics_group() ->
-    "p2p_" ++ gateway_config:serial_number().
-
-diagnostics_join(Pid) ->
-    pg2:join(diagnostics_group(), Pid).
-
-diagnostics_leave(Pid) ->
-    pg2:leave(diagnostics_group(), Pid).
-
 
 %% ebus_object
 
@@ -93,18 +77,9 @@ init(_) ->
 
     {ok, Bus} = ebus:system(),
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
-    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
-
-    pg2:create(diagnostics_group()),
-    Diagnostics = [{"eth", gateway_config:mac_address(eth)},
-                   {"wifi", gateway_config:mac_address(wifi)},
-                   {"fw", gateway_config:firmware_version()}],
-    self() ! timeout_diagnostics,
 
     {ok, #state{ubx_handle=UbxPid,
                 bluetooth_proxy=BluezProxy,
-                miner_proxy=MinerProxy,
-                diagnostics=Diagnostics,
                 button_handle=ButtonPid}}.
 
 
@@ -197,8 +172,6 @@ handle_call(ble_device_info, _From, State=#state{}) ->
         {error, Error} ->
             {reply, {error, Error}, State}
     end;
-handle_call(diagnostics, _From, State=#state{}) ->
-    {reply, State#state.diagnostics, State};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
@@ -267,27 +240,6 @@ handle_info(timeout_advertising, State=#state{})  ->
     lager:info("Timeout advertising"),
     handle_info({enable_advertising, false}, State);
 
-%% P2P Status
-handle_info(timeout_diagnostics, State=#state{}) ->
-    %% ebus_proxy:call_async(State#state.miner_proxy, {self(), handle_p2p_status},
-    %%                       ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)),
-    {noreply, State};
-handle_info({handle_p2p_status, Msg}, State=#state{}) ->
-    P2PStatus = case Msg of
-                    {ok, [Result]} -> Result;
-                    {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
-                        lager:info("Miner not ready to get p2p status"),
-                        [];
-                    {error, Error} ->
-                        lager:notice("Failed to get p2p status: ~p", [Error]),
-                        []
-                end,
-    NewDiagnostics = lists:foldl(fun({Key, Val}, Acc) ->
-                                         lists:keystore(Key, 1, Acc, {Key, Val})
-                                 end, State#state.diagnostics, P2PStatus),
-    [Pid ! {diagnostics, NewDiagnostics} || Pid <- pg2:get_members(diagnostics_group())],
-    Timer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), timeout_diagnostics),
-    {noreply, State#state{p2p_timer=Timer, diagnostics=NewDiagnostics}};
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.

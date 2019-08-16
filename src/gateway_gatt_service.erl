@@ -9,8 +9,7 @@
 -export([init/1, uuid/0, handle_info/2]).
 
 -record(state, {
-                connect_result_char=undefined :: undefined | ebus:object_path(),
-                diagnostics_char=undefined :: undefined | ebus:object_path()
+                connect_result_char=undefined :: undefined | ebus:object_path()
                }).
 
 uuid() ->
@@ -35,7 +34,7 @@ init(_) ->
          {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
          {gateway_gatt_char_lights, 8, []},
          {gateway_gatt_char_onboarding_key, 9, [MinerProxy]},
-         {gateway_gatt_char_diagnostics, 10, []}
+         {gateway_gatt_char_diagnostics, 10, [MinerProxy]}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -71,11 +70,6 @@ handle_info({connect_result, _Tech, Result}=Msg, State=#state{}) ->
     {noreply, State#state{connect_result_char=undefined}};
 handle_info({lights, Enable}, State=#state{}) ->
     gateway_config:lights_enable(Enable),
-    {noreply, State};
-handle_info({diagnostics_char, Char}, State=#state{}) ->
-    {noreply, State#state{diagnostics_char=Char}};
-handle_info({diagnostics, _Diagnostics}=Msg, State=#state{}) ->
-    self() ! {ebus_info, State#state.diagnostics_char, Msg},
     {noreply, State};
 
 handle_info(Msg, State) ->
