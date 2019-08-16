@@ -269,8 +269,8 @@ handle_info(timeout_advertising, State=#state{})  ->
 
 %% P2P Status
 handle_info(timeout_diagnostics, State=#state{}) ->
-    ebus_proxy:call_async(State#state.miner_proxy, {self(), handle_p2p_status},
-                          ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)),
+    %% ebus_proxy:call_async(State#state.miner_proxy, {self(), handle_p2p_status},
+    %%                       ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)),
     {noreply, State};
 handle_info({handle_p2p_status, Msg}, State=#state{}) ->
     P2PStatus = case Msg of
