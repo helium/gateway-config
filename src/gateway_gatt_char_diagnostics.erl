@@ -36,12 +36,16 @@ init(Path, [Proxy]) ->
 read_value(State=#state{value=Value}, #{"offset" := Offset}) ->
     {ok, binary:part(Value, Offset, byte_size (Value) - Offset), State};
 read_value(State=#state{}, _) ->
-    Value = diagnostics_to_bin(gateway_config:diagnostics(State#state.proxy)),
+    Value = case gateway_config:diagnostics(State#state.proxy) of
+                [] -> <<"wait">>;
+                List when is_list(List) ->  diagnostics_to_bin(List);
+                _ -> <<"unknown">>
+            end,
     {ok, Value, State#state{value=Value}}.
 
 
-diagnostics_to_bin(Status) ->
-    Msg = #gateway_diagnostics_v1_pb{diagnostics=Status},
+diagnostics_to_bin(Diagnostics) ->
+    Msg = #gateway_diagnostics_v1_pb{diagnostics=Diagnostics},
     gateway_gatt_char_diagnostics_pb:encode_msg(Msg).
 
 
