@@ -37,8 +37,8 @@ read_value(State=#state{value=Value}, #{"offset" := Offset}) ->
     {ok, binary:part(Value, Offset, byte_size (Value) - Offset), State};
 read_value(State=#state{}, _) ->
     Value = case gateway_config:diagnostics(State#state.proxy) of
-                [] -> <<"wait">>;
-                List when is_list(List) ->  diagnostics_to_bin(List);
+                List when is_list(List), length(List) == 0 -> <<"wait">>;
+                List when is_list(List), length(List) > 0 ->  diagnostics_to_bin(List);
                 _ -> <<"unknown">>
             end,
     {ok, Value, State#state{value=Value}}.
