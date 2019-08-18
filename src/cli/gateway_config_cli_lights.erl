@@ -16,9 +16,7 @@ register_all_usage() ->
                   [
                    lights_usage(),
                    lights_status_usage(),
-                   lights_on_usage(),
-                   lights_off_usage(),
-                   lights_state_usage()
+                   lights_event_usage()
                   ]).
 
 register_all_cmds() ->
@@ -28,9 +26,7 @@ register_all_cmds() ->
                   [
                    lights_cmd(),
                    lights_status_cmd(),
-                   lights_on_cmd(),
-                   lights_off_cmd(),
-                   lights_state_cmd()
+                   lights_event_cmd()
                   ]).
 
 %%
@@ -41,9 +37,7 @@ lights_usage() ->
     [["lights"],
      ["lights commands\n\n",
       "  status - Get the current lights status.\n"
-      "  on     - Turn on lights.\n"
-      "  off    - Turn off lights.\n"
-      "  state  - Set the state of the light.\n"
+      "  event  - Send a light event.\n"
      ]
     ].
 
@@ -77,68 +71,25 @@ lights_status([_, _, _], [], []) ->
 
 
 %%
-%% lights on
+%% lights event
 %%
 
-lights_on_cmd() ->
+lights_event_cmd() ->
     [
-     [["lights", "on"], [], [], fun lights_on/3]
+     [["lights", "event", '*'], [], [], fun lights_event/3]
     ].
 
-lights_on_usage() ->
-    [["lights", "on"],
-     ["lights on \n\n",
-      "  Turn on lights.\n\n"
-     ]
-    ].
-
-lights_on(["lights", "on"], [], []) ->
-    gateway_config:lights_enable(true),
-    [clique_status:text("ok")];
-lights_on([_, _, _], [], []) ->
-    usage.
-
-%%
-%% lights off
-%%
-
-lights_off_cmd() ->
-    [
-     [["lights", "off"], [], [], fun lights_off/3]
-    ].
-
-lights_off_usage() ->
-    [["lights", "off"],
-     ["lights off \n\n",
-      "  Turn off lights.\n\n"
-     ]
-    ].
-
-lights_off(["lights", "off"], [], []) ->
-    gateway_config:lights_enable(false),
-    [clique_status:text("ok")];
-lights_off([_, _, _], [], []) ->
-    usage.
-
-
-%%
-%% lights mode
-%%
-
-lights_state_cmd() ->
-    [
-     [["lights", "state", '*'], [], [], fun lights_state/3]
-    ].
-
-lights_state_usage() ->
-    [["lights", "state"],
-     ["lights state \n\n",
+lights_event_usage() ->
+    [["lights", "event"],
+     ["lights event \n\n",
       "  panic - Set panic mode for light.\n"
+      "  enable - Enable the light.\n"
+      "  disable - Disable the light.\n"
      ]
     ].
 
-lights_state(["lights", "state", StateStr], [], []) ->
-    gateway_config:lights_state(list_to_atom(StateStr)),
-    [clique_status:text(StateStr)];
-lights_state([_, _, _], [], []) ->
+lights_event(["lights", "event", EventStr], [], []) ->
+    gateway_config:lights_event(list_to_atom(EventStr)),
+    [clique_status:text(EventStr)];
+lights_event([_, _, _], [], []) ->
     usage.

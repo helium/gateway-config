@@ -10,7 +10,7 @@
          download_info/0, download_info/1,
          wifi_services/0, wifi_services_online/0,
          advertising_enable/1, advertising_info/0,
-         lights_enable/1, lights_state/1, lights_info/0,
+         lights_event/1, lights_info/0,
          diagnostics/1,
          ble_device_info/0]).
 
@@ -108,11 +108,8 @@ advertising_info() ->
 ble_device_info() ->
     gateway_config_worker:ble_device_info().
 
-lights_enable(Enable) ->
-    gateway_config_led:lights_enable(Enable).
-
-lights_state(State) ->
-    gateway_config_led:lights_state(State).
+lights_event(Event) ->
+    gateway_config_led:lights_event(Event).
 
 lights_info() ->
     gateway_config_led:lights_info().

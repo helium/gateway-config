@@ -69,7 +69,11 @@ handle_info({connect_result, _Tech, Result}=Msg, State=#state{}) ->
     self() ! {ebus_info, State#state.connect_result_char, Msg},
     {noreply, State#state{connect_result_char=undefined}};
 handle_info({lights, Enable}, State=#state{}) ->
-    gateway_config:lights_enable(Enable),
+    Event = case Enable of
+                true -> enable;
+                _ -> disable
+            end,
+    gateway_config:lights_event(Event),
     {noreply, State};
 
 handle_info(Msg, State) ->
