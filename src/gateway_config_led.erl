@@ -39,9 +39,7 @@
                 pairable_signal :: ebus:filter_id(),
                 miner_proxy :: ebus:proxy(),
                 diagnostics = [] :: [{string(), string()}],
-                diagnostics_timeout = make_ref() :: reference(),
-                cached_dialable = false :: boolean(),
-                dialable_timeout = make_ref() :: reference()
+                diagnostics_timeout = make_ref() :: reference()
                }).
 
 lights_info() ->
@@ -108,7 +106,7 @@ handle_info(init_led, State=#state{}) ->
     %% Don't update diagnostics for a cycle to give the system some time to settle
     DiagnosticsTimer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), diagnostics_timeout),
     NewState = State#state{diagnostics_timeout=DiagnosticsTimer},
-    {noreply, handle_led_event(p2p_led_event(NewState), NewState)};
+    {noreply, handle_led_event(p2p_led_event(NewState#state.diagnostics), NewState)};
 handle_info({ebus_signal, _Path, Signal, Msg}, State=#state{pairable_signal=Signal}) ->
     case ebus_message:args(Msg) of
         {ok, [?GATT_ADVERTISING_MANAGER_IFACE, #{"ActiveInstances" := Value}, _]} ->
@@ -127,15 +125,9 @@ handle_info({lights_event, Event}, State=#state{}) ->
 
 handle_info(diagnostics_timeout, State=#state{}) ->
     Diagnostics = gateway_config:diagnostics(State#state.miner_proxy),
-    State1 = update_cached_dialable(State#state{diagnostics=Diagnostics}),
-    State2 = handle_led_event(p2p_led_event(State1), State1),
+    State1 = handle_led_event(p2p_led_event(Diagnostics), State),
     DiagnosticsTimer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), diagnostics_timeout),
-    {noreply, State2#state{diagnostics_timeout=DiagnosticsTimer}};
-handle_info(dialable_timeout, State=#state{}) ->
-    %% On dialable timeout we stop relying on the cache and let the
-    %% actual diagnostic take over the dialable value.
-    {noreply, State#state{cached_dialable=false}};
-
+    {noreply, State1#state{diagnostics_timeout=DiagnosticsTimer}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info ~p", [Msg]),
@@ -149,34 +141,11 @@ terminate(_Reason, #state{}) ->
 %% Internal
 %%
 
-get_dialable(Diagnostics) ->
-    proplists:get_value("dialable", Diagnostics, "no") == "yes".
 
-get_connected(Diagnostics) ->
-    proplists:get_value("connected", Diagnostics, "no") == "yes".
-
-%% When the diagnostics state that this node is dialable we promote
-%% that to cached_dialable and kick the timeout so that this dialable
-%% state lasts for a while.
--spec update_cached_dialable(#state{}) -> #state{}.
-update_cached_dialable(State=#state{}) ->
-    case get_dialable(State#state.diagnostics) of
-        true ->
-            erlang:cancel_timer(State#state.dialable_timeout),
-            Timer = erlang:send_after(?DIALABLE_TIMEOUT, self(), dialable_timeout),
-            State#state{cached_dialable=true, dialable_timeout=Timer};
-        false ->
-            State
-    end.
-
--spec p2p_led_event(#state{}) -> online | offline.
-p2p_led_event(State=#state{diagnostics=Diagnostics}) ->
-    %% The node is only onlike if it is connected and dialable. When
-    %% not dialable we add some hysteresis with a cache since dialable
-    %% can happen regulary with proxied connections.
-    case {get_connected(Diagnostics), get_dialable(Diagnostics), State#state.cached_dialable} of
-        {true, false, true} ->  online;
-        {true, true, _} -> online;
+-spec p2p_led_event([{string(), string()}]) -> online | offline.
+p2p_led_event(Diagnostics) ->
+    case proplists:get_value("connected", Diagnostics, "no") == "yes" of
+        true -> online;
         _ -> offline
     end.
 
@@ -204,7 +173,7 @@ update_led_state(_, State=#state{state=panic}) ->
 update_led_state(disable, State=#state{}) ->
     update_off_file(State#state{state=disable});
 update_led_state(enable, State=#state{}) ->
-    update_off_file(update_led_state(p2p_led_event(State), State#state{state=undefined}));
+    update_off_file(update_led_state(p2p_led_event(State#state.diagnostics), State#state{state=undefined}));
 update_led_state(_, State=#state{state=disable}) ->
     %% Ignore all events during disabled state
     State;
@@ -221,7 +190,7 @@ update_led_state(start_advert, State=#state{}) ->
 update_led_state(stop_advert, State=#state{state={advert, _}}) ->
     %% We could set the state to the stored state here, but getting
     %% the actual value from p2p status seemed more error proof.
-    update_led_state(p2p_led_event(State), State#state{state=undefined});
+    update_led_state(p2p_led_event(State#state.diagnostics), State#state{state=undefined});
 update_led_state(stop_advert, State=#state{}) ->
     %% Ignore stop_advert when not in advert
     State;
