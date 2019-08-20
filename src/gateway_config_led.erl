@@ -57,9 +57,9 @@ init([Bus]) ->
     erlang:process_flag(trap_exit, true),
 
     OffFile = application:get_env(led, lights_off, "/tmp/gateway_lights_off"),
-    InitLedState = case not filelib:is_regular(OffFile) of
-                       true -> undefined;
-                       _ -> disable
+    InitLedState = case filelib:is_regular(OffFile) of
+                       true -> disable;
+                       _ -> undefined
                    end,
 
     LedPath = application:get_env(led, path, "/sys/bus/i2c/devices/1-0030"),
@@ -218,7 +218,10 @@ update_led_state(_Event, State=#state{}) ->
 
 -spec handle_led_event(Event::term(), #state{}) -> #state{}.
 handle_led_event(Event, State=#state{}) ->
-    update_led(update_led_state(Event, State)).
+    case update_led_state(Event, State) of
+        NewState when NewState#state.state == State#state.state -> ok;
+        NewState -> update_led(NewState)
+    end.
 
 update_led(State=#state{state=panic}) ->
     led_set_color(?COLOR_RED, State);
