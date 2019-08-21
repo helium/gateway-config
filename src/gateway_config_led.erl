@@ -219,8 +219,10 @@ update_led_state(_Event, State=#state{}) ->
 -spec handle_led_event(Event::term(), #state{}) -> #state{}.
 handle_led_event(Event, State=#state{}) ->
     case update_led_state(Event, State) of
-        NewState when NewState#state.state == State#state.state -> ok;
-        NewState -> update_led(NewState)
+        NewState when NewState#state.state == State#state.state ->
+            NewState;
+        NewState ->
+            update_led(NewState)
     end.
 
 update_led(State=#state{state=panic}) ->
