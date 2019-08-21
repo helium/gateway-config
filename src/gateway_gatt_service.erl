@@ -34,7 +34,7 @@ init(_) ->
          {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
          {gateway_gatt_char_lights, 8, []},
          {gateway_gatt_char_onboarding_key, 9, [MinerProxy]},
-         {gateway_gatt_char_diagnostics, 10, []}
+         {gateway_gatt_char_diagnostics, 10, [MinerProxy]}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -69,7 +69,11 @@ handle_info({connect_result, _Tech, Result}=Msg, State=#state{}) ->
     self() ! {ebus_info, State#state.connect_result_char, Msg},
     {noreply, State#state{connect_result_char=undefined}};
 handle_info({lights, Enable}, State=#state{}) ->
-    gateway_config:lights_enable(Enable),
+    Event = case Enable of
+                true -> enable;
+                _ -> disable
+            end,
+    gateway_config:lights_event(Event),
     {noreply, State};
 
 handle_info(Msg, State) ->
