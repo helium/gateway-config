@@ -125,7 +125,7 @@ handle_info({lights_event, Event}, State=#state{}) ->
 
 handle_info(diagnostics_timeout, State=#state{}) ->
     Diagnostics = gateway_config:diagnostics(State#state.miner_proxy),
-    State1 = handle_led_event(p2p_led_event(Diagnostics), State),
+    State1 = handle_led_event(p2p_led_event(Diagnostics), State#state{diagnostics=Diagnostics}),
     DiagnosticsTimer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), diagnostics_timeout),
     {noreply, State1#state{diagnostics_timeout=DiagnosticsTimer}};
 
@@ -196,7 +196,11 @@ update_led_state(stop_advert, State=#state{}) ->
     State;
 
 %% Online/Offline
-update_led_state(online, State=#state{state={advert, AdvertCxt}}) when AdvertCxt /= online ->
+update_led_state(online, State=#state{state={advert, online}}) ->
+    %% If we receive an online event while advertising and we were
+    %% online when we started advertising, stay in advertising.
+    State#state{};
+update_led_state(online, State=#state{state={advert, _}}) ->
     %% If we receive an online event while advertising and we were not
     %% online when we started advertising, go to online state.
     State#state{state=online};
