@@ -199,7 +199,7 @@ update_led_state(stop_advert, State=#state{}) ->
 update_led_state(online, State=#state{state={advert, online}}) ->
     %% If we receive an online event while advertising and we were
     %% online when we started advertising, stay in advertising.
-    State#state{};
+    State;
 update_led_state(online, State=#state{state={advert, _}}) ->
     %% If we receive an online event while advertising and we were not
     %% online when we started advertising, go to online state.
