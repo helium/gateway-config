@@ -60,9 +60,6 @@ serial_number() ->
     mac_address(wifi).
 
 wifi_services() ->
-    %% Scan for wifi services
-    connman:scan(wifi),
-    timer:sleep(1000),
     %% Fetch name and strength of currently visible wifi services
     Services = lists:filtermap(fun({_Path, #{"Type" := "wifi", "Name" := Name, "Strength" := Strength}}) ->
                                        {true, {Name, Strength}};
