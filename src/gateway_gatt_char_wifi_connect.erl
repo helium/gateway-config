@@ -85,6 +85,10 @@ maybe_notify_value(State=#state{notify=false}) ->
 maybe_notify_value(State=#state{}) ->
     gatt_characteristic:value_changed(State#state.path,
                                       State#state.value),
+    case State#state.value of
+        %% Start a scan to repopulate list of visible wifi services
+        <<"connected">> -> connman:scan(wifi)
+    end,
     State.
 
 
