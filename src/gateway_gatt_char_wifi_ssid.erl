@@ -71,6 +71,8 @@ handle_signal(SignalID, Msg, State=#state{service_signal=SignalID}) ->
 
 -spec update_value(#state{}) -> #state{}.
 update_value(State=#state{service_path=CurrentPath}) ->
+    %% Start a scan to repopulate list of visible wifi services
+    connman:scan(wifi),
     case {CurrentPath, gateway_config:wifi_services_online()} of
         {CurrentPath, [{_, CurrentPath} | _]} ->
             %% No change in path

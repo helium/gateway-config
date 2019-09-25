@@ -217,6 +217,8 @@ handle_info({packet, Packet}, State=#state{}) ->
 %% Button click
 handle_info({button_clicked, _, 1}, State=#state{}) ->
     lager:info("Button clicked"),
+    %% Start a scan for visible wifi services
+    connman:scan(wifi),
     handle_info({enable_advertising, true}, State);
 
 %% BLE Advertising
