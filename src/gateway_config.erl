@@ -65,8 +65,6 @@ wifi_services() ->
                                        {true, {Name, Strength}};
                                   ({_Path, _}) -> false
                          end, connman:services()),
-    %% Start another scan for visible wifi services
-    connman:scan(wifi),
     %% Sort by signal strength
     lists:reverse(lists:keysort(2, Services)).
 
