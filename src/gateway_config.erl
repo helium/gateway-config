@@ -102,6 +102,8 @@ download_info() ->
     gateway_config_worker:download_info().
 
 advertising_enable(Enable) ->
+    %% Start a scan for visible wifi services
+    connman:scan(wifi),
     gateway_config_worker:advertising_enable(Enable).
 
 advertising_info() ->
