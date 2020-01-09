@@ -5,6 +5,7 @@
 -behavior(gatt_service).
 
 -define(CONNMAN_AGENT_RETRY, 5000).
+-define(ENABLE_WIFI_RETRY, 10000).
 
 -export([init/1, uuid/0, handle_info/2]).
 
@@ -41,7 +42,21 @@ init(_) ->
 
 handle_info(enable_wifi, State=#state{}) ->
     connman:enable(wifi, true),
+    erlang:send_after(?ENABLE_WIFI_RETRY, self(), ensure_wifi),
     {noreply, State};
+handle_info(ensure_wifi, State=#state{}) ->
+    case connman:state({tech, wifi}) of
+        {error, Error} ->
+            lager:warning("Failed to get Wi-Fi state; Re-enabling Wi-Fi: ~p", [Error]),
+            self() ! enable_wifi,
+            {noreply, State};
+        {ok, disabled} ->
+            lager:warning("Failed to enable Wi-Fi; Retrying", []),
+            self() ! enable_wifi,
+            {noreply, State};
+        {ok, _} ->
+            {noreply, State}
+    end;
 handle_info({connect, wifi, _, _, Char}, State=#state{connect_result_char=E}) when E =/= undefined ->
     self() ! {ebus_info, Char, {error, already_connecting}},
     {noreply, State};
