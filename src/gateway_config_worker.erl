@@ -218,6 +218,7 @@ handle_info({packet, Packet}, State=#state{}) ->
 handle_info({button_clicked, _, 1}, State=#state{}) ->
     lager:info("Button clicked"),
     %% Start a scan for visible wifi services
+    connman:enable(wifi, true),
     connman:scan(wifi),
     handle_info({enable_advertising, true}, State);
 
