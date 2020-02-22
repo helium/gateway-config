@@ -189,7 +189,6 @@ handle_cast(Msg, State=#state{}) ->
 
 
 handle_info({nav_pvt, NavMap}, State=#state{}) ->
-    report_gps_stats(NavMap),
     FixType = maps:get(fix_type, NavMap, 0),
     case update_gps_lock(FixType, State) of
         {true, NewState} ->
@@ -296,14 +295,3 @@ maybe_signal_position(#state{gps_lock=true}) ->
     self() ! signal_position;
 maybe_signal_position(_) ->
     ok.
-
-
--spec report_gps_stats(ubx:nav_pvt()) -> ok.
-report_gps_stats(NavMap) when map_size(NavMap) == 0 ->
-    ok;
-report_gps_stats(#{num_sats := NumSats, t_acc := TimeAcc, h_acc := HorizontalAcc, fix_type := FixType}) ->
-    dogstatsd:gauge([
-                     {"gps.num_sats", NumSats, #{fix_type => FixType}},
-                     {"gps.t_acc", TimeAcc, #{fix_type => FixType}},
-                     {"gps.h_acc", HorizontalAcc, #{fix_type => FixType}}
-                    ]).
