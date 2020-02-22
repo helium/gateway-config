@@ -30,14 +30,9 @@ init(Path, [Proxy]) ->
     {ok, Descriptors, #state{path=Path, proxy=Proxy}}.
 
 read_value(State=#state{}, _) ->
-    Value = case ebus_proxy:call(State#state.proxy, ?MINER_OBJECT(?MINER_MEMBER_ONBOARDING_KEY)) of
-                {ok, [PubKeyB58]} ->  list_to_binary(PubKeyB58);
-                {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
-                    lager:warning("Miner not ready to get public key, returning waiting"),
-                    <<"wait">>;
-                {error, Error} ->
-                    lager:warning("Failed to get onboarding key, returning unkown: ~p", [Error]),
-                    <<"unknown">>
+    Value = case gateway_config:get_public_key(onboarding_key) of
+                {error, _} -> <<"unknown">>;
+                {ok, V} -> list_to_binary(V)
             end,
     {ok, Value, State}.
 
@@ -57,39 +52,16 @@ flags_test() ->
 read_test() ->
     {ok, _, Char} = ?MODULE:init("", [proxy]),
 
-    PubKey = "onboarding_key",
-    meck:expect(ebus_proxy, call,
-                fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_ONBOARDING_KEY)) ->
-                        {ok, [PubKey]}
-                end),
-    ?assertEqual({ok, list_to_binary(PubKey), Char}, ?MODULE:read_value(Char, #{})),
-
-   ?assert(meck:validate(ebus_proxy)),
-    meck:unload(ebus_proxy),
+    application:set_env(gateway_config, keys_file, "test/public_keys"),
+    ?assertEqual({ok, <<"onboarding_key">>, Char}, ?MODULE:read_value(Char, #{})),
 
     ok.
 
 error_test() ->
     {ok, _, Char} = ?MODULE:init("", [proxy]),
 
-    meck:expect(ebus_proxy, call,
-                fun(proxy, ?MINER_OBJECT(?MINER_MEMBER_ONBOARDING_KEY)) ->
-                        ErrorName = get({?MODULE, meck_error}),
-                        {error, ErrorName}
-                end),
-
-   lists:foldl(fun({ErrorName, Value}, State) ->
-                       put({?MODULE, meck_error}, ErrorName),
-                       ?assertEqual({ok, Value, State}, ?MODULE:read_value(State, #{})),
-                       State
-               end, Char,
-               [
-                {"org.freedesktop.DBus.Error.ServiceUnknown", <<"wait">>},
-                {"com.unknown.Error", <<"unknown">>}
-               ]),
-
-   ?assert(meck:validate(ebus_proxy)),
-    meck:unload(ebus_proxy),
+    application:set_env(gateway_config, keys_file, "test/no_keys_file"),
+    ?assertEqual({ok, <<"unknown">>, Char}, ?MODULE:read_value(Char, #{})),
 
     ok.
 

@@ -12,6 +12,7 @@
          advertising_enable/1, advertising_info/0,
          lights_event/1, lights_info/0,
          diagnostics/1,
+         get_public_key/1,
          ble_device_info/0]).
 
 firmware_version() ->
@@ -137,3 +138,18 @@ diagnostics(Proxy) ->
     lists:foldl(fun({Key, Val}, Acc) ->
                         lists:keystore(Key, 1, Acc, {Key, Val})
                 end, Base, P2PStatus).
+
+
+-spec get_public_key(onboarding_key | pubkey) -> {ok, string()} | {error, term()}.
+get_public_key(KeyName) ->
+    KeysFile = application:get_env(gateway_config, keys_file, "data/public_keys"),
+    case file:consult(KeysFile) of
+        {error, Error} -> {error, Error};
+        {ok, KeyList} ->
+            case proplists:get_value(KeyName, KeyList, undefined) of
+                undefined ->
+                    {error, key_not_found};
+                V ->
+                    {ok, V}
+            end
+    end.
