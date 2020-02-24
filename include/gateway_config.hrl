@@ -18,6 +18,7 @@
 -define(MINER_MEMBER_ADD_GW, "AddGateway").
 -define(MINER_MEMBER_ASSERT_LOC, "AssertLocation").
 -define(MINER_MEMBER_P2P_STATUS, "P2PStatus").
+-define(MINER_MEMBER_ETH_ONLINE, "EthernetOnline").
 
 -define(MINER_ERROR_BADARGS, "com.helium.Miner.Error.BadArgs").
 -define(MINER_ERROR_INTERNAL, "com.helium.Miner.Error.Internal").
