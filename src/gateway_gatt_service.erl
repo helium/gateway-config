@@ -35,7 +35,8 @@ init(_) ->
          {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
          {gateway_gatt_char_lights, 8, []},
          {gateway_gatt_char_onboarding_key, 9, [MinerProxy]},
-         {gateway_gatt_char_diagnostics, 10, [MinerProxy]}
+         {gateway_gatt_char_diagnostics, 10, [MinerProxy]},
+         {gateway_gatt_char_eth_online, 11, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.

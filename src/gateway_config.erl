@@ -9,6 +9,7 @@
          gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
          wifi_services/0, wifi_services_online/0,
+         ethernet_online/0,
          advertising_enable/1, advertising_info/0,
          lights_event/1, lights_info/0,
          diagnostics/1,
@@ -77,6 +78,17 @@ wifi_services_online() ->
                             case maps:get("Type", M, false) == "wifi"
                                 andalso lists:member(maps:get("State", M, false), ["online", "ready"]) of
                                 true -> {true, {maps:get("Name", M), Path}};
+                                false -> false
+                            end
+                    end, connman:services()).
+
+%% Is any ethernet service online?
+-spec ethernet_online() -> boolean().
+ethernet_online() ->
+    lists:any(fun({_Path, M}) ->
+                            case maps:get("Type", M, false) == "ethernet"
+                                andalso lists:member(maps:get("State", M, false), ["online"]) of
+                                true -> true;
                                 false -> false
                             end
                     end, connman:services()).
