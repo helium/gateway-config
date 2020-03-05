@@ -13,8 +13,6 @@
 -define(MINER_APPLICATION_NAME, "com.helium.Miner").
 -define(MINER_INTERFACE, "com.helium.Miner").
 -define(MINER_OBJECT(M), ?MINER_INTERFACE ++ "." ++ M).
--define(MINER_MEMBER_PUBKEY, "PubKey").
--define(MINER_MEMBER_ONBOARDING_KEY, "OnboardingKey").
 -define(MINER_MEMBER_ADD_GW, "AddGateway").
 -define(MINER_MEMBER_ASSERT_LOC, "AssertLocation").
 -define(MINER_MEMBER_P2P_STATUS, "P2PStatus").
