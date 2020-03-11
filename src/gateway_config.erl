@@ -4,6 +4,7 @@
 
 -export([firmware_version/0,
          mac_address/1,
+         ip_address/0,
          serial_number/0,
          gps_info/0, gps_sat_info/0,
          gps_offline_assistance/1, gps_online_assistance/1,
@@ -56,6 +57,19 @@ mac_address(DevicePrefixes) when is_list(DevicePrefixes) ->
                 {_,  Addr} ->
                     lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- Addr])
             end
+    end.
+
+ip_address() ->
+    {ok, Addrs} = inet:getifaddrs(),
+    NonLocals = [
+        Addr || {_, Opts} <- Addrs, {addr, Addr} <- Opts,
+        size(Addr) == 4, Addr =/= {127,0,0,1}
+    ],
+    case NonLocals of
+        [] ->
+            "none";
+        _ ->
+            inet:ntoa(hd(NonLocals))
     end.
 
 serial_number() ->
@@ -136,7 +150,8 @@ lights_info() ->
 diagnostics(Proxy) ->
     Base = [{"eth",  ?MODULE:mac_address(eth)},
             {"wifi", ?MODULE:mac_address(wifi)},
-            {"fw",   ?MODULE:firmware_version()}],
+            {"fw",   ?MODULE:firmware_version()},
+            {"ip",   ?MODULE:ip_address()}],
     P2PStatus = case ebus_proxy:call(Proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
                     {ok, [Result]} -> Result;
                     {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
