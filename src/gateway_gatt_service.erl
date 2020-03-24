@@ -36,7 +36,8 @@ init(_) ->
          {gateway_gatt_char_lights, 8, []},
          {gateway_gatt_char_onboarding_key, 9, [MinerProxy]},
          {gateway_gatt_char_diagnostics, 10, [MinerProxy]},
-         {gateway_gatt_char_eth_online, 11, []}
+         {gateway_gatt_char_eth_online, 11, []},
+         {gateway_gatt_char_wifi_remove, 12, []}
         ],
     self() ! enable_wifi,
     {ok, Characteristics, #state{}}.
@@ -62,8 +63,8 @@ handle_info({connect, wifi, _, _, Char}, State=#state{connect_result_char=E}) wh
     self() ! {ebus_info, Char, {error, already_connecting}},
     {noreply, State};
 handle_info({connect, wifi, Service, Pass, Char}=Msg, State=#state{}) ->
-    lager:info("Trying to connect to WiFI SSID: ~p", [Service]),
-    %% Start the connman agent if it was not already started.On
+    lager:info("Trying to connect to WiFi SSID: ~p", [Service]),
+    %% Start the connman agent if it was not already started. On
     %% failure to start the agent we try to restart it later and
     %% re-attempt the connect.
     case connman:start_agent() of
@@ -84,6 +85,25 @@ handle_info({connect_result, _Tech, Result}=Msg, State=#state{}) ->
     lager:info("Connect result ~p", [Result]),
     self() ! {ebus_info, State#state.connect_result_char, Msg},
     {noreply, State#state{connect_result_char=undefined}};
+handle_info({remove, wifi, Service, _Char}=Msg, State=#state{}) ->
+    lager:info("Trying to remove WiFi SSID: ~p", [Service]),
+    %% Start the connman agent if it was not already started. On
+    %% failure to start the agent we try to restart it later and
+    %% re-attempt the remove.
+    case connman:start_agent() of
+        ok ->
+            case connman:remove(wifi, Service) of
+                ok ->
+                    {noreply, State};
+                Other ->
+                    lager:notice("Error removing WiFi SSID ~p: ~p", [Service, Other]),
+                    {noreply, State}
+            end;
+        {error, Error} ->
+            lager:warning("Failed to start connman agent; ~p", [Error]),
+            erlang:send_after(?CONNMAN_AGENT_RETRY, self(), Msg),
+            {noreply, State}
+    end;
 handle_info({lights, Enable}, State=#state{}) ->
     Event = case Enable of
                 true -> enable;

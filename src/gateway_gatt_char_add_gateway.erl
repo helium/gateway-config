@@ -59,7 +59,7 @@ write_value(State=#state{}, Bin) ->
                     end,
             {ok, maybe_notify_value(State#state{value=Value})}
     catch _What:Why ->
-            lager:warning("Failed to decode add_gateway request: ~p", Why),
+            lager:warning("Failed to decode add_gateway request: ~p", [Why]),
             {ok, maybe_notify_value(State#state{value= <<"badargs">>})}
     end.
 

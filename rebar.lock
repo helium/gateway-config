@@ -5,7 +5,7 @@
   0},
  {<<"connman">>,
   {git,"https://github.com/helium/ebus-connman",
-       {ref,"c0cfde6cbf720bd781df6e6c3fb31ae8b26f46da"}},
+       {ref,"06135aec22941389e68e33232c712676f0b5624a"}},
   0},
  {<<"cuttlefish">>,
   {git,"https://github.com/helium/cuttlefish.git",
