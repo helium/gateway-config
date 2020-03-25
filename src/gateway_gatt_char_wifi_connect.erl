@@ -43,7 +43,7 @@ write_value(State=#state{}, Bin) ->
             self() ! {connect, wifi, Service, Pass, State#state.path},
             {ok, maybe_notify_value(State#state{value= <<"connecting">>})}
     catch _What:Why ->
-            lager:warning("Failed to wifi_connect request: ~p", Why),
+            lager:warning("Failed to decode wifi_connect request: ~p", [Why]),
             {ok, maybe_notify_value(State#state{value= <<"badargs">>})}
     end.
 
