@@ -9,7 +9,7 @@
          gps_info/0, gps_sat_info/0,
          gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
-         wifi_services/0, wifi_services_online/0,
+         wifi_services/0, wifi_services_online/0, wifi_credentials/0,
          ethernet_online/0,
          advertising_enable/1, advertising_info/0,
          lights_event/1, lights_info/0,
@@ -96,6 +96,56 @@ wifi_services_online() ->
                                 false -> false
                             end
                     end, connman:services()).
+
+get_all_lines(Filename) ->
+    {ok, IO} = file:open(Filename, [read]),
+    Lines = get_all_lines(io:get_line(IO, ""), IO, []),
+    file:close(IO),
+    Lines.
+
+get_all_lines(eof, _IO, Acc) -> lists:reverse(Acc);
+get_all_lines({error, _Error}, _IO, Acc) -> lists:reverse(Acc);
+get_all_lines(Line, IO, Acc) -> get_all_lines(io:get_line(IO, ""), IO, [Line | Acc]).
+
+extract_value(Key, Lines) ->
+    Prefix = Key ++ "=",
+    lists:filtermap(fun(Line) ->
+                        case string:str(Line, Prefix) > 0 of
+                            true ->
+                                Start = string:str(Line, Prefix) + string:len(Prefix),
+                                Value = string:substr(Line, Start),
+                                {true, string:trim(Value, trailing, "\n")};
+                            false -> false
+                        end
+                    end, Lines).
+
+parse_settings(Filename) ->
+    Lines = get_all_lines(Filename),
+    case lists:any(fun(Line) -> string:equal(Line, "Favorite=true\n") end, Lines) of
+        true ->
+            [Network] = extract_value("Name", Lines),
+            [Passphrase] = extract_value("Passphrase", Lines),
+            {true, {Network, Passphrase}};
+        false -> false
+    end.
+
+wifi_credentials() ->
+    Path = "/var/lib/connman/",
+    case file:list_dir(Path) of
+        {ok, Filenames} ->
+            lists:filtermap(fun(Filename) ->
+                                case filelib:is_dir(Path ++ Filename) of
+                                    true ->
+                                        case filelib:find_file("settings", Path ++ Filename) of
+                                            {ok, Settings} ->
+                                                parse_settings(Settings);
+                                            {error, not_found} -> false
+                                        end;
+                                    false -> false
+                                end
+                            end, Filenames);
+        _ -> []
+    end.
 
 %% Is any ethernet service online?
 -spec ethernet_online() -> boolean().
