@@ -9,7 +9,7 @@
          gps_info/0, gps_sat_info/0,
          gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
-         wifi_services/0, wifi_services_online/0, wifi_credentials/0,
+         wifi_services/0, wifi_services_online/0, wifi_services_configured/0,
          ethernet_online/0,
          advertising_enable/1, advertising_info/0,
          lights_event/1, lights_info/0,
@@ -124,12 +124,11 @@ parse_settings(Filename) ->
     case lists:any(fun(Line) -> string:equal(Line, "Favorite=true\n") end, Lines) of
         true ->
             [Network] = extract_value("Name", Lines),
-            [Passphrase] = extract_value("Passphrase", Lines),
-            {true, {Network, Passphrase}};
+            {true, Network};
         false -> false
     end.
 
-wifi_credentials() ->
+wifi_services_configured() ->
     Path = "/var/lib/connman/",
     case file:list_dir(Path) of
         {ok, Filenames} ->
