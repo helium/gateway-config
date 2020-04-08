@@ -10,6 +10,7 @@
          gps_offline_assistance/1, gps_online_assistance/1,
          download_info/0, download_info/1,
          wifi_services/0, wifi_services_online/0, wifi_services_configured/0,
+         wifi_services_named/1,
          ethernet_online/0,
          advertising_enable/1, advertising_info/0,
          lights_event/1, lights_info/0,
@@ -119,25 +120,63 @@ extract_value(Key, Lines) ->
                         end
                     end, Lines).
 
-parse_settings(Filename) ->
+parse_wifi_network_name_from_settings(Filename) ->
     Lines = get_all_lines(Filename),
     case lists:any(fun(Line) -> string:equal(Line, "Favorite=true\n") end, Lines) of
         true ->
-            [Network] = extract_value("Name", Lines),
-            {true, Network};
+            Dirname = filename:dirname(Filename),
+            Service = lists:last(filename:split(Dirname)),
+            Prefix = string:sub_string(Service, 1, 5),
+            case string:equal(Prefix, "wifi_") of
+                true ->
+                    [Network] = extract_value("Name", Lines),
+                    {true, Network};
+                false -> false
+            end;
+        false -> false
+    end.
+
+parse_wifi_service_from_settings(Network, Filename) ->
+    Lines = get_all_lines(Filename),
+    case lists:any(fun(Line) -> string:equal(Line, "Name=" ++ Network ++ "\n") end, Lines) of
+        true ->
+            Dirname = filename:dirname(Filename),
+            Service = lists:last(filename:split(Dirname)),
+            Prefix = string:sub_string(Service, 1, 5),
+            case string:equal(Prefix, "wifi_") of
+                true ->
+                    {true, Service};
+                false -> false
+            end;
         false -> false
     end.
 
 wifi_services_configured() ->
-    Path = "/var/lib/connman/",
-    case file:list_dir(Path) of
+    case file:list_dir(?CONNMAN_PROFILES_PATH) of
         {ok, Filenames} ->
             lists:filtermap(fun(Filename) ->
-                                case filelib:is_dir(Path ++ Filename) of
+                                case filelib:is_dir(?CONNMAN_PROFILES_PATH ++ Filename) of
                                     true ->
-                                        case filelib:find_file("settings", Path ++ Filename) of
+                                        case filelib:find_file("settings", ?CONNMAN_PROFILES_PATH ++ Filename) of
                                             {ok, Settings} ->
-                                                parse_settings(Settings);
+                                                parse_wifi_network_name_from_settings(Settings);
+                                            {error, not_found} -> false
+                                        end;
+                                    false -> false
+                                end
+                            end, Filenames);
+        _ -> []
+    end.
+
+wifi_services_named(Name) ->
+    case file:list_dir(?CONNMAN_PROFILES_PATH) of
+        {ok, Filenames} ->
+            lists:filtermap(fun(Filename) ->
+                                case filelib:is_dir(?CONNMAN_PROFILES_PATH ++ Filename) of
+                                    true ->
+                                        case filelib:find_file("settings", ?CONNMAN_PROFILES_PATH ++ Filename) of
+                                            {ok, Settings} ->
+                                                parse_wifi_service_from_settings(Name, Settings);
                                             {error, not_found} -> false
                                         end;
                                     false -> false

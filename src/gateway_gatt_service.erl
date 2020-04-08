@@ -86,18 +86,22 @@ handle_info({connect_result, _Tech, Result}=Msg, State=#state{}) ->
     lager:info("Connect result ~p", [Result]),
     self() ! {ebus_info, State#state.connect_result_char, Msg},
     {noreply, State#state{connect_result_char=undefined}};
-handle_info({remove, wifi, Service, _Char}=Msg, State=#state{}) ->
-    lager:info("Trying to remove WiFi SSID: ~p", [Service]),
+handle_info({remove, wifi, Network, _Char}=Msg, State=#state{}) ->
     %% Start the connman agent if it was not already started. On
     %% failure to start the agent we try to restart it later and
     %% re-attempt the remove.
     case connman:start_agent() of
         ok ->
-            case connman:remove(wifi, Service) of
+            case connman:remove(wifi, Network) of
                 ok ->
                     {noreply, State};
-                Other ->
-                    lager:notice("Error removing WiFi SSID ~p: ~p", [Service, Other]),
+                {error, Error} ->
+                    lager:notice("connman failed to remove WiFi network ~p: ~p", [Network, Error]),
+                    Services = gateway_config:wifi_services_named(Network),
+                    lists:foreach(fun(Service) ->
+                        lager:notice("Deleting ~p profile for network ~p", [Service, Network]),
+                        os:cmd("rm -rf " ++ ?CONNMAN_PROFILES_PATH ++ Service)
+                    end, Services),
                     {noreply, State}
             end;
         {error, Error} ->
