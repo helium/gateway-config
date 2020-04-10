@@ -19,3 +19,5 @@
 
 -define(MINER_ERROR_BADARGS, "com.helium.Miner.Error.BadArgs").
 -define(MINER_ERROR_INTERNAL, "com.helium.Miner.Error.Internal").
+
+-define(CONNMAN_PROFILES_PATH, "/var/lib/connman/").
