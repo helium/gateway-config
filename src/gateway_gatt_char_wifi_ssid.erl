@@ -33,7 +33,9 @@ init(Path, _) ->
          {gatt_descriptor_pf, 1, [utf8_string]}
         ],
     {ok, SignalID} = connman:register_state_notify({tech, wifi}, self(), Path),
-    {ok, Descriptors, update_value(#state{path=Path, wifi_signal=SignalID})}.
+    %% Call update_value twice with different args to check for all possible states
+    NextState = update_value(#state{path=Path, wifi_signal=SignalID}, "disconnect"),
+    {ok, Descriptors, update_value(NextState, "online")}.
 
 start_notify(State=#state{notify=true}) ->
     %% Already notifying
@@ -51,53 +53,92 @@ read_value(State=#state{value=Value}, _) ->
     {ok, Value, State}.
 
 
-handle_signal(SignalID, _Msg, State=#state{wifi_signal=SignalID}) ->
-    %% WiFi overall state has changed
-    {noreply, maybe_notify_value(update_value(State))};
+handle_signal(SignalID, Msg, State=#state{wifi_signal=SignalID}) ->
+    %% WiFi interface state has changed
+    case ebus_message:args(Msg) of
+        {ok, ["Connected", true]} ->
+            {noreply, maybe_notify_value(update_value(State, "online"))};
+        {ok, ["Connected", false]} ->
+            {noreply, maybe_notify_value(update_value(State, "disconnect"))};
+        _ ->
+            {noreply, State}
+    end;
 handle_signal(SignalID, Msg, State=#state{service_signal=SignalID}) ->
     %% Signal for the current service. Deal only with changes to the
     %% State attribute
     case ebus_message:args(Msg) of
-        {ok, ["State", _]} ->
-            {noreply, maybe_notify_value(update_value(State))};
+        {ok, ["State", ServiceState]} ->
+            {noreply, maybe_notify_value(update_value(State, ServiceState))};
+        _ ->
+            {noreply, State}
+    end;
+handle_signal(_SignalID, Msg, State=#state{}) ->
+    %% State#state.service_signal /= _SignalID.
+    %% Signal from a different service
+    Args = ebus_message:args(Msg),
+    lager:warning("unexpected service_signal: ~p", [Args]),
+    case Args of
+        {ok, ["State", "online"]} ->
+            NextState = maybe_notify_value(update_value(State, "disconnect")),
+            {noreply, maybe_notify_value(update_value(NextState, "online"))};
         _ ->
             {noreply, State}
     end.
-
 
 %%
 %% Internal
 %%
 
--spec update_value(#state{}) -> #state{}.
-update_value(State=#state{service_path=CurrentPath}) ->
+update_value(State=#state{service_path=CurrentPath}, ServiceState) ->
     %% Start a scan to repopulate list of visible wifi services
     connman:scan(wifi),
-    case {CurrentPath, gateway_config:wifi_services_online()} of
+    case ServiceState of
+        "online" ->
+            maybe_register_state_notify(CurrentPath, State);
+        _ ->
+            maybe_unregister_state_notify(CurrentPath, State)
+    end.
+
+maybe_register_state_notify(CurrentPath, State) ->
+    WiFiServicesOnline = gateway_config:wifi_services_online(),
+    case {CurrentPath, WiFiServicesOnline} of
         {CurrentPath, [{_, CurrentPath} | _]} ->
             %% No change in path
             lager:info("WiFi unchanged for ~p at: ~p", [State#state.value, CurrentPath]),
-            State;
-        {undefined, []} ->
-            %% No path and not connected
-            lager:info("WiFi still disconnected"),
             State;
         {undefined, [{Value, NewPath} | _]} ->
             %% From no path to a path
             lager:info("WiFi connected to: ~p at ~p", [Value, NewPath]),
             {ok, SignalID} = connman:register_state_notify({path, NewPath}, self(), State#state.path),
             State#state{value=list_to_binary(Value), service_path=NewPath, service_signal=SignalID};
-        {CurrentPath, []} ->
-            %% Disconnected from wifi
-            lager:info("WiFi disconnected from: ~p", [State#state.value]),
-            connman:unregister_state_notify(State#state.service_signal, self(), State#state.path),
-            State#state{service_signal=undefined, value= <<"">>, service_path=undefined};
         {CurrentPath, [{Value, NewPath} | _]} ->
             %% Switching paths
             lager:info("WiFi changed from ~p to: ~p", [State#state.value, Value]),
             connman:unregister_state_notify(State#state.service_signal, self(), State#state.path),
             {ok, SignalID} = connman:register_state_notify({path, NewPath}, self(), State#state.path),
-            State#state{value=list_to_binary(Value), service_path=NewPath, service_signal=SignalID}
+            State#state{value=list_to_binary(Value), service_path=NewPath, service_signal=SignalID};
+        _ ->
+            lager:warning("early WiFi online event"),
+            State
+    end.
+
+maybe_unregister_state_notify(CurrentPath, State) ->
+    case CurrentPath of
+        undefined ->
+            %% No path and not connected
+            lager:info("WiFi still disconnected"),
+            State;
+        CurrentPath ->
+            ServiceSignal = State#state.service_signal,
+            case ServiceSignal of
+                undefined ->
+                    State;
+                _ ->
+                    %% Disconnected from wifi
+                    lager:info("WiFi disconnected from: ~p", [State#state.value]),
+                    connman:unregister_state_notify(ServiceSignal, self(), State#state.path),
+                    State#state{service_signal=undefined, value= <<"">>, service_path=undefined}
+            end
     end.
 
 maybe_notify_value(State=#state{notify=false}) ->
