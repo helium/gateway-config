@@ -73,6 +73,10 @@ handle_info({connect, wifi, Service, Pass, Char}=Msg, State=#state{}) ->
             case connman:connect(wifi, Service, Pass, self()) of
                 ok ->
                     {noreply, State#state{connect_result_char=Char}};
+                {error, "net.connman.error.NotRegistered"} ->
+                    lager:warning("Agent off connecting to SSID ~p: Retrying", [Service]),
+                    erlang:send_after(?CONNMAN_AGENT_RETRY, self(), Msg),
+                    {noreply, State};
                 Other ->
                     lager:notice("Error connecting connman to SSID ~p: ~p", [Service, Other]),
                     {noreply, State}
