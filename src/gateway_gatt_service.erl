@@ -96,16 +96,17 @@ handle_info({remove, wifi, Network, _Char}=Msg, State=#state{}) ->
     %% re-attempt the remove.
     case connman:start_agent() of
         ok ->
-            case connman:remove(wifi, Network) of
+            Result = connman:remove(wifi, Network),
+            Services = gateway_config:wifi_services_named(Network),
+            lists:foreach(fun(Service) ->
+                lager:notice("Deleting ~p profile for network ~p", [Service, Network]),
+                os:cmd("rm -rf " ++ ?CONNMAN_PROFILES_PATH ++ Service)
+            end, Services),
+            case Result of
                 ok ->
                     {noreply, State};
                 {error, Error} ->
                     lager:notice("connman failed to remove WiFi network ~p: ~p", [Network, Error]),
-                    Services = gateway_config:wifi_services_named(Network),
-                    lists:foreach(fun(Service) ->
-                        lager:notice("Deleting ~p profile for network ~p", [Service, Network]),
-                        os:cmd("rm -rf " ++ ?CONNMAN_PROFILES_PATH ++ Service)
-                    end, Services),
                     {noreply, State}
             end;
         {error, Error} ->
