@@ -50,7 +50,23 @@ write_value(State=#state{}, Bin) ->
             H3String = h3:to_string(H3Index),
             lager:info("Requesting assert_loc_txn for lat/lon/acc: {~p, ~p, ~p} index: ~p",
                        [Lat, Lon, ?H3_LATLON_RESOLUTION, H3String]),
-            Value = case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
+            Value = case Payer of
+                <<"[]">> ->
+                    case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
+                                         [string, string, uint64, uint64, uint64, string],
+                                         [H3String, Owner, Nonce, Amount, Fee, <<>>]) of
+                        {ok, [BinTxn]} ->  BinTxn;
+                        {error, Error} ->
+                            lager:warning("Failed to get assert_loc txn empty Payer: ~p", [Error]),
+                            case Error of
+                                "org.freedesktop.DBus.Error.ServiceUnknown" -> <<"wait">>;
+                                ?MINER_ERROR_BADARGS -> <<"badargs">>;
+                                ?MINER_ERROR_INTERNAL -> <<"error">>;
+                                _ -> <<"unknown">>
+                            end
+                    end;
+                _ ->
+                    case ebus_proxy:call(State#state.proxy, "/", ?MINER_OBJECT(?MINER_MEMBER_ASSERT_LOC),
                                          [string, string, uint64, uint64, uint64, string],
                                          [H3String, Owner, Nonce, Amount, Fee, Payer]) of
                         {ok, [BinTxn]} ->  BinTxn;
@@ -62,7 +78,8 @@ write_value(State=#state{}, Bin) ->
                                 ?MINER_ERROR_INTERNAL -> <<"error">>;
                                 _ -> <<"unknown">>
                             end
-                    end,
+                    end
+            end,
             {ok, maybe_notify_value(State#state{value=Value})}
     catch _What:Why ->
             lager:warning("Failed to decode assert_loc request: ~p", [Why]),
