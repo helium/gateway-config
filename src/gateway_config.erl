@@ -6,9 +6,6 @@
          mac_address/1,
          ip_address/0,
          serial_number/0,
-         gps_info/0, gps_sat_info/0,
-         gps_offline_assistance/1, gps_online_assistance/1,
-         download_info/0, download_info/1,
          wifi_services/0, wifi_services_online/0, wifi_services_configured/0,
          wifi_services_named/1,
          ethernet_online/0,
@@ -195,24 +192,6 @@ ethernet_online() ->
                                 false -> false
                             end
                     end, connman:services()).
-
-gps_info() ->
-    gateway_config_worker:gps_info().
-
-gps_sat_info() ->
-    gateway_config_worker:gps_sat_info().
-
-gps_offline_assistance(Path) ->
-    gateway_config_worker:gps_offline_assistance(Path).
-
-gps_online_assistance(Path) ->
-    gateway_config_worker:gps_online_assistance(Path).
-
-download_info(Value) when is_boolean(Value) ->
-    gateway_config_worker:download_info(Value).
-
-download_info() ->
-    gateway_config_worker:download_info().
 
 advertising_enable(Enable) ->
     gateway_config_worker:advertising_enable(Enable).

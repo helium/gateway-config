@@ -6,12 +6,12 @@
   {applications,
    [kernel,
     stdlib,
+    erlang_ale,
     lager,
     h3,
     ebus,
     gatt,
     connman,
-    ubx,
     clique
    ]},
   {env,[]},

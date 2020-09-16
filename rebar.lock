@@ -18,7 +18,7 @@
  {<<"erlang_ale">>,
   {git,"https://github.com/helium/erlang_ale",
        {ref,"7446b2df79411992e8efc34325e35437dcf536c1"}},
-  1},
+  0},
  {<<"gatt">>,
   {git,"https://github.com/helium/ebus-gatt",
        {ref,"92732d7d7c153e46f4a7b9bde46c676b8d8476fd"}},
@@ -29,11 +29,7 @@
   {git,"https://github.com/helium/erlang-h3.git",
        {ref,"a8f006a8c447b3902bd14a84f421f211775a982e"}},
   0},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.6.7">>},0},
- {<<"ubx">>,
-  {git,"https://github.com/helium/erlang-ubx",
-       {ref,"19e5168037c1d461a6e4b41a2f7d1d2353eec638"}},
-  0}]}.
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.6.7">>},0}]}.
 [
 {pkg_hash,[
  {<<"getopt">>, <<"C73A9FA687B217F2FF79F68A3B637711BB1936E712B521D8CE466B29CBF7808A">>},
