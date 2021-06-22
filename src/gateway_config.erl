@@ -228,10 +228,16 @@ diagnostics(Proxy) ->
                         lager:notice("Failed to get p2p status: ~p", [Error]),
                         []
                 end,
+    DiskStatus = case filelib:is_file("/tmp/disk-failure") of
+                     true ->
+                         "read-only";
+                     false ->
+                         "ok"
+                 end,
     %% Merge p2p status into the base
     lists:foldl(fun({Key, Val}, Acc) ->
                         lists:keystore(Key, 1, Acc, {Key, Val})
-                end, Base, P2PStatus).
+                end, [{"disk", DiskStatus} | Base], P2PStatus).
 
 
 -spec get_public_key(onboarding_key | pubkey) -> {ok, string()} | {error, term()}.
