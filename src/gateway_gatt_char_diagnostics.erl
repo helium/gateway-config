@@ -44,7 +44,11 @@ read_value(State=#state{}, _) ->
     {ok, Value, State#state{value=Value}}.
 
 
-diagnostics_to_bin(Diagnostics) ->
+diagnostics_to_bin(Diagnostics0) ->
+    %% fixup well-connected
+    Diagnostics = proplists:substitute_aliases([{"well-connected", "connected"}],
+                                               Diagnostics0),
+
     Msg = #gateway_diagnostics_v1_pb{diagnostics=Diagnostics},
     gateway_gatt_char_diagnostics_pb:encode_msg(Msg).
 
