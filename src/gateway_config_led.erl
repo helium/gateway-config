@@ -144,7 +144,7 @@ terminate(_Reason, #state{}) ->
 
 -spec p2p_led_event([{string(), string()}]) -> online | offline.
 p2p_led_event(Diagnostics) ->
-    case proplists:get_value("well-connected", Diagnostics, "no") == "yes" of
+    case proplists:get_value("connected", Diagnostics, "no") == "yes" of
         true -> online;
         _ -> offline
     end.
