@@ -13,7 +13,8 @@
          lights_event/1, lights_info/0,
          diagnostics/1,
          get_public_key/1,
-         ble_device_info/0]).
+         ble_device_info/0,
+         disk_status/0]).
 
 firmware_version() ->
     case file:read_file("/etc/lsb_release") of
@@ -208,6 +209,20 @@ lights_event(Event) ->
 lights_info() ->
     gateway_config_led:lights_info().
 
+%% Check for SD Card failure.
+%%
+%% The touchfile `/tmp/disk-failure', created out of band during
+%% firmware init, indicates SD Card failure. If this file exists,
+%% we're essentially read only mode as any writes to the filesystem
+%% will not persist.
+-spec disk_status() -> string().
+disk_status() ->
+    case filelib:is_file("/tmp/disk-failure") of
+        true ->
+            "read-only";
+        false ->
+            "ok"
+    end.
 
 %% @doc Fetches the current diagnostics information. This includes
 %% getting p2p status from a given ebus miner proxy object. The
@@ -218,7 +233,8 @@ diagnostics(Proxy) ->
     Base = [{"eth",  ?MODULE:mac_address(eth)},
             {"wifi", ?MODULE:mac_address(wifi)},
             {"fw",   ?MODULE:firmware_version()},
-            {"ip",   ?MODULE:ip_address()}],
+            {"ip",   ?MODULE:ip_address()},
+            {"disk", ?MODULE:disk_status()}],
     P2PStatus = case ebus_proxy:call(Proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
                     {ok, [Result]} -> Result;
                     {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
