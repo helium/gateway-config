@@ -21,17 +21,17 @@
 
 -type engine() :: 1 | 2 | 3.
 -type cmd() ::
-    start |
-    fin |
-    {fin, Int :: 0 | 1, Reset :: 0 | 1} |
-    {label, Label :: atom()} |
-    {branch, Count :: 0..63, Label :: atom()} |
-    {branch, Count :: 0..63, Index :: non_neg_integer()} |
-    {wait, TimeMS :: float()} |
-    {set_pwm, Value :: 0..255} |
-    {ramp, TimeMS :: float(), Steps :: integer()} |
-    {ramp, Prescale :: 0 | 1, StepTime :: non_neg_integer(), Increments :: integer()} |
-    {trigger, Sends :: [engine()], Waits :: [engine()]}.
+    start
+    | fin
+    | {fin, Int :: 0 | 1, Reset :: 0 | 1}
+    | {label, Label :: atom()}
+    | {branch, Count :: 0..63, Label :: atom()}
+    | {branch, Count :: 0..63, Index :: non_neg_integer()}
+    | {wait, TimeMS :: float()}
+    | {set_pwm, Value :: 0..255}
+    | {ramp, TimeMS :: float(), Steps :: integer()}
+    | {ramp, Prescale :: 0 | 1, StepTime :: non_neg_integer(), Increments :: integer()}
+    | {trigger, Sends :: [engine()], Waits :: [engine()]}.
 
 -type cmd_bin() :: <<_:16>>.
 

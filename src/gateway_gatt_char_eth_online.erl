@@ -35,6 +35,18 @@ read_value(State = #state{}, _Opts) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+meck_connman_services() ->
+    meck:new(connman, [passthrough]),
+    meck:expect(
+        connman,
+        services,
+        fun() -> [] end
+    ).
+
+meck_validate_connman() ->
+    ?assert(meck:validate(connman)),
+    meck:unload(connman).
+
 uuid_test() ->
     {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_ETH_ONLINE, ?MODULE:uuid(Char)),
@@ -47,8 +59,12 @@ flags_test() ->
 
 %% nature of various unit tests indicate test environment is likely Wi-Fi
 eth_offline_test() ->
+    meck_connman_services(),
+
     {ok, _, Char} = ?MODULE:init("", []),
-    ?assertEqual(<<"false">>, ?MODULE:read_value(Char, #{})),
+    ?assertEqual({ok, <<"false">>, Char}, ?MODULE:read_value(Char, #{})),
+
+    meck_validate_connman(),
     ok.
 
 -endif.
