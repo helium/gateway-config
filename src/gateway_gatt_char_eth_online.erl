@@ -1,14 +1,17 @@
 -module(gateway_gatt_char_eth_online).
+
 -include("gateway_gatt.hrl").
 
 -behavior(gatt_characteristic).
 
--export([init/2,
-         uuid/1,
-         flags/1,
-         read_value/2]).
+-export([
+    init/2,
+    uuid/1,
+    flags/1,
+    read_value/2
+]).
 
--record(state, { path :: ebus:object_path() }).
+-record(state, {path :: ebus:object_path()}).
 
 uuid(_) ->
     ?UUID_GATEWAY_GATT_CHAR_ETH_ONLINE.
@@ -17,19 +20,17 @@ flags(_) ->
     [read].
 
 init(Path, _) ->
-    Descriptors =
-        [
-         {gatt_descriptor_cud, 0, ["Ethernet Online"]},
-         {gatt_descriptor_pf, 1, [utf8_string]}
-        ],
-    {ok, Descriptors, #state{path=Path}}.
+    Descriptors = [
+        {gatt_descriptor_cud, 0, ["Ethernet Online"]},
+        {gatt_descriptor_pf, 1, [utf8_string]}
+    ],
+    {ok, Descriptors, #state{path = Path}}.
 
-read_value(State=#state{}, _Opts) ->
+read_value(State = #state{}, _Opts) ->
     case gateway_config:ethernet_online() of
         true -> {ok, <<"true">>, State};
         false -> {ok, <<"false">>, State}
     end.
-
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

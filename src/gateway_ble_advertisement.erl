@@ -2,9 +2,14 @@
 
 -behavior(ble_advertisement).
 
--export([adapter_path/0, type/0,
-         init/1, services/1, include_tx_power/1, local_name/1]).
-
+-export([
+    adapter_path/0,
+    type/0,
+    init/1,
+    services/1,
+    include_tx_power/1,
+    local_name/1
+]).
 
 adapter_path() ->
     gateway_gatt_application:adapter_path().

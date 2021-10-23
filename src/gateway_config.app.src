@@ -1,23 +1,23 @@
-{application, gateway_config,
- [{description, "An OTP application"},
-  {vsn, "git"},
-  {registered, []},
-  {mod, { gateway_config_app, []}},
-  {applications,
-   [kernel,
-    stdlib,
-    erlang_ale,
-    lager,
-    h3,
-    ebus,
-    gatt,
-    connman,
-    clique
-   ]},
-  {env,[]},
-  {modules, []},
+{application, gateway_config, [
+    {description, "An OTP application"},
+    {vsn, "git"},
+    {registered, []},
+    {mod, {gateway_config_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        erlang_ale,
+        lager,
+        h3,
+        ebus,
+        gatt,
+        connman,
+        clique
+    ]},
+    {env, []},
+    {modules, []},
 
-  {maintainers, []},
-  {licenses, ["Apache 2.0"]},
-  {links, []}
- ]}.
+    {maintainers, []},
+    {licenses, ["Apache 2.0"]},
+    {links, []}
+]}.

@@ -2,23 +2,29 @@
 
 -include("gateway_config.hrl").
 
--export([firmware_version/0,
-         mac_address/1,
-         ip_address/0,
-         serial_number/0,
-         wifi_services/0, wifi_services_online/0, wifi_services_configured/0,
-         wifi_services_named/1,
-         ethernet_online/0,
-         advertising_enable/1, advertising_info/0,
-         lights_event/1, lights_info/0,
-         diagnostics/1,
-         get_public_key/1,
-         ble_device_info/0,
-         disk_status/0]).
+-export([
+    firmware_version/0,
+    mac_address/1,
+    ip_address/0,
+    serial_number/0,
+    wifi_services/0,
+    wifi_services_online/0,
+    wifi_services_configured/0,
+    wifi_services_named/1,
+    ethernet_online/0,
+    advertising_enable/1,
+    advertising_info/0,
+    lights_event/1,
+    lights_info/0,
+    diagnostics/1,
+    get_public_key/1,
+    ble_device_info/0,
+    disk_status/0
+]).
 
 firmware_version() ->
     case file:read_file("/etc/lsb_release") of
-        {error,_}  ->
+        {error, _} ->
             Result = string:trim(os:cmd("lsb_release -rs")),
             case lists:suffix("not found", Result) of
                 true ->
@@ -29,7 +35,7 @@ firmware_version() ->
             end;
         {ok, File} ->
             Lines = string:split(binary_to_list(File), "\n", all),
-            Props = [{K, V} || [K, V] <-  [string:split(E, "=") || E <- Lines]],
+            Props = [{K, V} || [K, V] <- [string:split(E, "=") || E <- Lines]],
             case lists:keyfind("DISTRIB_RELEASE", 1, Props) of
                 false -> "unknown";
                 {_, Version} -> Version
@@ -42,27 +48,34 @@ mac_address(eth) ->
     mac_address(["eth", "en"]);
 mac_address(DevicePrefixes) when is_list(DevicePrefixes) ->
     {ok, S} = inet:getifaddrs(),
-    case lists:filter(fun({K, _}) ->
-                              lists:any(fun(Prefix) ->
-                                                lists:prefix(Prefix, K)
-                                        end, DevicePrefixes)
-                      end, S) of
+    case
+        lists:filter(
+            fun({K, _}) ->
+                lists:any(
+                    fun(Prefix) ->
+                        lists:prefix(Prefix, K)
+                    end,
+                    DevicePrefixes
+                )
+            end,
+            S
+        )
+    of
         [] ->
             lager:warning("No ethernet interface found"),
             "unknown";
         [{_, Props} | _] ->
             case lists:keyfind(hwaddr, 1, Props) of
                 false -> "unknown";
-                {_,  Addr} ->
-                    lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- Addr])
+                {_, Addr} -> lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- Addr])
             end
     end.
 
 ip_address() ->
     {ok, Addrs} = inet:getifaddrs(),
     NonLocals = [
-        Addr || {_, Opts} <- Addrs, {addr, Addr} <- Opts,
-        size(Addr) == 4, Addr =/= {127,0,0,1}
+        Addr
+        || {_, Opts} <- Addrs, {addr, Addr} <- Opts, size(Addr) == 4, Addr =/= {127, 0, 0, 1}
     ],
     case NonLocals of
         [] ->
@@ -76,10 +89,15 @@ serial_number() ->
 
 wifi_services() ->
     %% Fetch name and strength of currently visible wifi services
-    Services = lists:filtermap(fun({_Path, #{"Type" := "wifi", "Name" := Name, "Strength" := Strength}}) ->
-                                       {true, {Name, Strength}};
-                                  ({_Path, _}) -> false
-                         end, connman:services()),
+    Services = lists:filtermap(
+        fun
+            ({_Path, #{"Type" := "wifi", "Name" := Name, "Strength" := Strength}}) ->
+                {true, {Name, Strength}};
+            ({_Path, _}) ->
+                false
+        end,
+        connman:services()
+    ),
     %% Sort by signal strength
     lists:reverse(lists:keysort(2, Services)).
 
@@ -88,13 +106,18 @@ wifi_services() ->
 %% we're connected.
 -spec wifi_services_online() -> [{string(), ebus:object_path()}].
 wifi_services_online() ->
-    lists:filtermap(fun({Path, M}) ->
-                            case maps:get("Type", M, false) == "wifi"
-                                andalso lists:member(maps:get("State", M, false), ["online", "ready"]) of
-                                true -> {true, {maps:get("Name", M), Path}};
-                                false -> false
-                            end
-                    end, connman:services()).
+    lists:filtermap(
+        fun({Path, M}) ->
+            case
+                maps:get("Type", M, false) == "wifi" andalso
+                    lists:member(maps:get("State", M, false), ["online", "ready"])
+            of
+                true -> {true, {maps:get("Name", M), Path}};
+                false -> false
+            end
+        end,
+        connman:services()
+    ).
 
 get_all_lines(Filename) ->
     {ok, IO} = file:open(Filename, [read]),
@@ -108,15 +131,19 @@ get_all_lines(Line, IO, Acc) -> get_all_lines(io:get_line(IO, ""), IO, [Line | A
 
 extract_value(Key, Lines) ->
     Prefix = Key ++ "=",
-    lists:filtermap(fun(Line) ->
-                        case string:str(Line, Prefix) > 0 of
-                            true ->
-                                Start = string:str(Line, Prefix) + string:len(Prefix),
-                                Value = string:substr(Line, Start),
-                                {true, string:trim(Value, trailing, "\n")};
-                            false -> false
-                        end
-                    end, Lines).
+    lists:filtermap(
+        fun(Line) ->
+            case string:str(Line, Prefix) > 0 of
+                true ->
+                    Start = string:str(Line, Prefix) + string:len(Prefix),
+                    Value = string:substr(Line, Start),
+                    {true, string:trim(Value, trailing, "\n")};
+                false ->
+                    false
+            end
+        end,
+        Lines
+    ).
 
 parse_wifi_network_name_from_settings(Filename) ->
     Lines = get_all_lines(Filename),
@@ -129,9 +156,11 @@ parse_wifi_network_name_from_settings(Filename) ->
                 true ->
                     [Network] = extract_value("Name", Lines),
                     {true, Network};
-                false -> false
+                false ->
+                    false
             end;
-        false -> false
+        false ->
+            false
     end.
 
 parse_wifi_service_from_settings(Network, Filename) ->
@@ -144,55 +173,78 @@ parse_wifi_service_from_settings(Network, Filename) ->
             case string:equal(Prefix, "wifi_") of
                 true ->
                     {true, Service};
-                false -> false
+                false ->
+                    false
             end;
-        false -> false
+        false ->
+            false
     end.
 
 wifi_services_configured() ->
     case file:list_dir(?CONNMAN_PROFILES_PATH) of
         {ok, Filenames} ->
-            lists:filtermap(fun(Filename) ->
-                                case filelib:is_dir(?CONNMAN_PROFILES_PATH ++ Filename) of
-                                    true ->
-                                        case filelib:find_file("settings", ?CONNMAN_PROFILES_PATH ++ Filename) of
-                                            {ok, Settings} ->
-                                                parse_wifi_network_name_from_settings(Settings);
-                                            {error, not_found} -> false
-                                        end;
-                                    false -> false
-                                end
-                            end, Filenames);
-        _ -> []
+            lists:filtermap(
+                fun(Filename) ->
+                    case filelib:is_dir(?CONNMAN_PROFILES_PATH ++ Filename) of
+                        true ->
+                            case
+                                filelib:find_file("settings", ?CONNMAN_PROFILES_PATH ++ Filename)
+                            of
+                                {ok, Settings} ->
+                                    parse_wifi_network_name_from_settings(Settings);
+                                {error, not_found} ->
+                                    false
+                            end;
+                        false ->
+                            false
+                    end
+                end,
+                Filenames
+            );
+        _ ->
+            []
     end.
 
 wifi_services_named(Name) ->
     case file:list_dir(?CONNMAN_PROFILES_PATH) of
         {ok, Filenames} ->
-            lists:filtermap(fun(Filename) ->
-                                case filelib:is_dir(?CONNMAN_PROFILES_PATH ++ Filename) of
-                                    true ->
-                                        case filelib:find_file("settings", ?CONNMAN_PROFILES_PATH ++ Filename) of
-                                            {ok, Settings} ->
-                                                parse_wifi_service_from_settings(Name, Settings);
-                                            {error, not_found} -> false
-                                        end;
-                                    false -> false
-                                end
-                            end, Filenames);
-        _ -> []
+            lists:filtermap(
+                fun(Filename) ->
+                    case filelib:is_dir(?CONNMAN_PROFILES_PATH ++ Filename) of
+                        true ->
+                            case
+                                filelib:find_file("settings", ?CONNMAN_PROFILES_PATH ++ Filename)
+                            of
+                                {ok, Settings} ->
+                                    parse_wifi_service_from_settings(Name, Settings);
+                                {error, not_found} ->
+                                    false
+                            end;
+                        false ->
+                            false
+                    end
+                end,
+                Filenames
+            );
+        _ ->
+            []
     end.
 
 %% Is any ethernet service online?
 -spec ethernet_online() -> boolean().
 ethernet_online() ->
-    lists:any(fun({_Path, M}) ->
-                            case maps:get("Type", M, false) == "ethernet"
-                                andalso lists:member(maps:get("State", M, false), ["online"]) of
-                                true -> true;
-                                false -> false
-                            end
-                    end, connman:services()).
+    lists:any(
+        fun({_Path, M}) ->
+            case
+                maps:get("Type", M, false) == "ethernet" andalso
+                    lists:member(maps:get("State", M, false), ["online"])
+            of
+                true -> true;
+                false -> false
+            end
+        end,
+        connman:services()
+    ).
 
 advertising_enable(Enable) ->
     gateway_config_worker:advertising_enable(Enable).
@@ -230,31 +282,39 @@ disk_status() ->
 %% indicate what the current status is on the local machine.
 -spec diagnostics(ebus:proxy()) -> [{string(), string()}].
 diagnostics(Proxy) ->
-    Base = [{"eth",  ?MODULE:mac_address(eth)},
-            {"wifi", ?MODULE:mac_address(wifi)},
-            {"fw",   ?MODULE:firmware_version()},
-            {"ip",   ?MODULE:ip_address()},
-            {"disk", ?MODULE:disk_status()}],
-    P2PStatus = case ebus_proxy:call(Proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
-                    {ok, [Result]} -> Result;
-                    {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
-                        lager:info("Miner not ready to get p2p status"),
-                        [];
-                    {error, Error} ->
-                        lager:notice("Failed to get p2p status: ~p", [Error]),
-                        []
-                end,
+    Base = [
+        {"eth", ?MODULE:mac_address(eth)},
+        {"wifi", ?MODULE:mac_address(wifi)},
+        {"fw", ?MODULE:firmware_version()},
+        {"ip", ?MODULE:ip_address()},
+        {"disk", ?MODULE:disk_status()}
+    ],
+    P2PStatus =
+        case ebus_proxy:call(Proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
+            {ok, [Result]} ->
+                Result;
+            {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
+                lager:info("Miner not ready to get p2p status"),
+                [];
+            {error, Error} ->
+                lager:notice("Failed to get p2p status: ~p", [Error]),
+                []
+        end,
     %% Merge p2p status into the base
-    lists:foldl(fun({Key, Val}, Acc) ->
-                        lists:keystore(Key, 1, Acc, {Key, Val})
-                end, Base, P2PStatus).
-
+    lists:foldl(
+        fun({Key, Val}, Acc) ->
+            lists:keystore(Key, 1, Acc, {Key, Val})
+        end,
+        Base,
+        P2PStatus
+    ).
 
 -spec get_public_key(onboarding_key | pubkey) -> {ok, string()} | {error, term()}.
 get_public_key(KeyName) ->
     KeysFile = application:get_env(gateway_config, keys_file, "data/public_keys"),
     case file:consult(KeysFile) of
-        {error, Error} -> {error, Error};
+        {error, Error} ->
+            {error, Error};
         {ok, KeyList} ->
             case proplists:get_value(KeyName, KeyList, undefined) of
                 undefined ->

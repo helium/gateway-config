@@ -34,25 +34,25 @@ init([]) ->
     {ok, B} = ebus:system(),
     SupFlags = {one_for_all, 3, 10},
     ChildSpecs = [
-                  #{
-                    id => gateway_config_worker,
-                    start => {gateway_config_worker, start_link, [B]},
-                    type => worker,
-                    restart => permanent
-                  },
-                  #{
-                    id => gateway_config_led,
-                    start => {gateway_config_led, start_link, [B]},
-                    type => worker,
-                    restart => permanent
-                  },
-                  #{
-                    id => gateway_gatt_application,
-                    restart => permanent,
-                    type => supervisor,
-                    start => {gatt_application_sup, start_link, [gateway_gatt_application, []]}
-                   }
-                 ],
+        #{
+            id => gateway_config_worker,
+            start => {gateway_config_worker, start_link, [B]},
+            type => worker,
+            restart => permanent
+        },
+        #{
+            id => gateway_config_led,
+            start => {gateway_config_led, start_link, [B]},
+            type => worker,
+            restart => permanent
+        },
+        #{
+            id => gateway_gatt_application,
+            restart => permanent,
+            type => supervisor,
+            start => {gatt_application_sup, start_link, [gateway_gatt_application, []]}
+        }
+    ],
     {ok, {SupFlags, ChildSpecs}}.
 
 %%====================================================================
