@@ -97,8 +97,7 @@ advertise_on_usage() ->
     ].
 
 advertise_on(["advertise", "on"], [], []) ->
-    gateway_config:advertising_enable(true),
-    [clique_status:text("ok")];
+    gateway_config:advertising_enable(true);
 advertise_on([_, _, _], [], []) ->
     usage.
 
@@ -121,7 +120,6 @@ advertise_off_usage() ->
     ].
 
 advertise_off(["advertise", "off"], [], []) ->
-    gateway_config:advertising_enable(false),
-    [clique_status:text("ok")];
+    gateway_config:advertising_enable(false);
 advertise_off([_, _, _], [], []) ->
     usage.

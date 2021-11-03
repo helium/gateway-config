@@ -1,5 +1,20 @@
 #!/bin/sh
 if [ -t 0 ] ; then
-    export CLIQUE_COLUMNS=`stty size | cut -d ' ' -f 2`
+    CLIQUE_COLUMNS=$(stty size 2>/dev/null | cut -d ' ' -f 2)
+    export CLIQUE_COLUMNS
 fi
-relx_nodetool rpc gateway_config_cli_registry command ble $@
+
+j=1
+l=$#
+buf="[[\"ble\","
+while [ $j -le $l ]; do
+    buf="$buf\"$1\","
+    j=$(( j + 1 ))
+    shift
+done
+
+buf="${buf%?}]]"
+
+relx_nodetool rpc gateway_config_cli_registry command "$buf"
+
+exit $?
