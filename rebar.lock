@@ -46,6 +46,10 @@
   {git,"https://github.com/helium/erlang-h3.git",
        {ref,"7ff30d080817f1ed4c170afcfb8825902825b37c"}},
   0},
+ {<<"helium_proto">>,
+  {git,"https://github.com/helium/proto.git",
+       {ref,"b119c026f49ed27f0e7cdaaab95b46419e92fdfe"}},
+  0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.9.2">>},0}]}.
 [
 {pkg_hash,[
