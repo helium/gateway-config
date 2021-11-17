@@ -35,7 +35,7 @@ start_link(GpioNum, Owner) ->
     start_link(GpioNum, Owner, []).
 
 start_link(GpioNum, Owner, Options) ->
-    gen_statem:start_link(?MODULE, [GpioNum, Owner, Options], []).
+    gen_statem:start_link(?MODULE, [GpioNum, Owner, Options], [{hibernate_after, 10000}]).
 
 init([GpioNum, Owner, Options]) ->
     {ok, Gpio} = gpio:start_link(GpioNum, input),

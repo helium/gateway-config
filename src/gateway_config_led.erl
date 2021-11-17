@@ -54,7 +54,7 @@ lights_event(State) ->
     ?MODULE ! {lights_event, State}.
 
 start_link(Bus) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Bus], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Bus], [{hibernate_after, 10000}]).
 
 init([Bus]) ->
     %% Trap exits to allow for terminate led animation
