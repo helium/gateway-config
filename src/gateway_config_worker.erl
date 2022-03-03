@@ -67,15 +67,19 @@ init(_) ->
     }}.
 
 init_button(Args) ->
-    case file:read_file_info("/dev/gpio") of
-        {ok, _} ->
-            Gpio = proplists:get_value(gpio, Args, 7),
-            {ok, Pid} = gpio_button:start_link(Gpio, self()),
-            Pid;
-        _ ->
-            lager:warning("No GPIO device tree found, running in stub mode"),
-            undefined
-    end.
+    Gpio = proplists:get_value(gpio, Args, 7),
+    {ok, Pid} = gpio_button:start_link(Gpio, self()),
+    Pid.
+    %% case file:read_file_info("/dev/gpio") of
+    %%     {ok, _} ->
+    %%         Gpio = proplists:get_value(gpio, Args, 7),
+    %%         lager:info("GPIO: ~d", Gpio),
+    %%         {ok, Pid} = gpio_button:start_link(Gpio, self()),
+    %%         Pid;
+    %%     _ ->
+    %%         lager:warning("No GPIO device tree found, running in stub mode"),
+    %%         undefined
+    %% end.
 
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
@@ -120,7 +124,7 @@ handle_cast(Msg, State = #state{}) ->
     {noreply, State}.
 
 %% Button click
-handle_info({button_clicked, _, 1}, State = #state{}) ->
+handle_info({button_clicked, _, _}, State = #state{}) ->
     lager:info("Button clicked"),
     %% Start a scan for visible wifi services
     connman:enable(wifi, true),
