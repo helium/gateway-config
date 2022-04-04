@@ -42,7 +42,6 @@
     state :: led_state(),
     off_file :: string(),
     pairable_signal :: ebus:filter_id(),
-    miner_proxy :: ebus:proxy(),
     diagnostics = [] :: [{string(), string()}],
     diagnostics_timeout = make_ref() :: reference()
 }).
@@ -88,14 +87,11 @@ init([Bus]) ->
         pairable_signal
     ),
 
-    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
-
     State = #state{
         handle = LedHandle,
         off_file = OffFile,
         state = InitLedState,
-        pairable_signal = PairableSignal,
-        miner_proxy = MinerProxy
+        pairable_signal = PairableSignal
     },
     self() ! init_led,
     {ok, State}.
@@ -130,7 +126,7 @@ handle_info({ebus_signal, _Path, Signal, Msg}, State = #state{pairable_signal = 
 handle_info({lights_event, Event}, State = #state{}) ->
     {noreply, handle_led_event(Event, State)};
 handle_info(diagnostics_timeout, State = #state{}) ->
-    Diagnostics = gateway_config:diagnostics(State#state.miner_proxy),
+    Diagnostics = gateway_config:diagnostics(),
     State1 = handle_led_event(p2p_led_event(Diagnostics), State#state{diagnostics = Diagnostics}),
     DiagnosticsTimer = erlang:send_after(?DIAGNOSTICS_TIMEOUT, self(), diagnostics_timeout),
     {noreply, State1#state{diagnostics_timeout = DiagnosticsTimer}};

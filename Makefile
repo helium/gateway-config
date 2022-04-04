@@ -40,14 +40,13 @@ release:
 devrelease:
 	$(REBAR) as dev release
 
-grpc:
+grpc: | $(GRPC_SERVICE_DIR)
 	@echo "generating gateway_config grpc services"
 	REBAR_CONFIG="config/grpc_client_gen_local.config" $(REBAR) grpc gen
 
 $(GRPC_SERVICE_DIR):
 	@echo "gateway_config service directory $(directory) does not exist"
 	$(REBAR) get-deps
-	$(MAKE) grpc
 
 clean_grpc:
 	@echo "cleaning gateway_config grpc services"
@@ -55,15 +54,3 @@ clean_grpc:
 
 doc:
 	$(REBAR) edoc
-
-grpc: | $(grpc_services_directory)
-	@echo "generating grpc client services"
-	REBAR_CONFIG="config/grpc_client_gen.config" $(REBAR) grpc gen
-
-clean_grpc:
-	@echo "cleaning grpc services"
-	rm -rf $(grpc_services_directory)
-
-$(grpc_services_directory):
-	@echo "grpc service directory $(directory) does not exist"
-	$(REBAR) get-deps

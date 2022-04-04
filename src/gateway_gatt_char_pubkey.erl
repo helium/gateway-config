@@ -13,8 +13,7 @@
 ]).
 
 -record(state, {
-    path :: ebus:object_path(),
-    proxy :: ebus:proxy()
+    path :: ebus:object_path()
 }).
 
 uuid(_) ->
@@ -23,12 +22,12 @@ uuid(_) ->
 flags(_) ->
     [read].
 
-init(Path, [Proxy]) ->
+init(Path, []) ->
     Descriptors = [
         {gatt_descriptor_cud, 0, ["Public Key"]},
         {gatt_descriptor_pf, 1, [utf8_string]}
     ],
-    {ok, Descriptors, #state{path = Path, proxy = Proxy}}.
+    {ok, Descriptors, #state{path = Path}}.
 
 read_value(State = #state{}, _) ->
     Value =
@@ -42,17 +41,17 @@ read_value(State = #state{}, _) ->
 -include_lib("eunit/include/eunit.hrl").
 
 uuid_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_PUBKEY, ?MODULE:uuid(Char)),
     ok.
 
 flags_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual([read], ?MODULE:flags(Char)),
     ok.
 
 read_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
 
     application:set_env(gateway_config, keys_file, "test/public_keys"),
     ?assertEqual(
@@ -63,7 +62,7 @@ read_test() ->
     ok.
 
 error_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
 
     application:set_env(gateway_config, keys_file, "test/no_keys_file"),
     ?assertEqual({ok, <<"unknown">>, Char}, ?MODULE:read_value(Char, #{})),
