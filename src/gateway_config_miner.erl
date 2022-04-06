@@ -47,7 +47,8 @@ init(_) ->
 handle_call(Call, From, State = #state{connection = undefined}) ->
     GrpcPort = application:get_env(gateway_config, grpc_port, 4467),
     case grpc_client:connect(tcp, "localhost", GrpcPort) of
-        {ok, Connection} ->
+        {ok, Connection = #{http_connection := Pid}} ->
+            erlang:monitor(process, Pid),
             handle_call(Call, From, State#state{connection = Connection});
         {error, Error} ->
             {reply, {error, Error}, State}
@@ -63,8 +64,8 @@ handle_call(pubkey, _From, State = #state{connection = Connection}) ->
     case call_unary(Connection, pubkey, #{}) of
         {ok, #{result := #{address := PubKey, onboarding_address := OnboardingKey}}} ->
             {reply, {ok, {PubKey, OnboardingKey}}, State};
-        {error, _} ->
-            {reply, {ok, [{"connected", "no"}]}, State#state{connection = undefined}}
+        {error, Error} ->
+            {reply, {error, Error}, State#state{connection = undefined}}
     end;
 handle_call({add_gateway, [Owner, Payer, Mode]}, _From, State = #state{connection = Connection}) ->
     case
@@ -77,7 +78,7 @@ handle_call({add_gateway, [Owner, Payer, Mode]}, _From, State = #state{connectio
         {ok, #{result := #{add_gateway_txn := BinTxn}}} ->
             {reply, {ok, BinTxn}, State};
         {error, Error} ->
-            {repl, {error, Error}, State}
+            {reply, {error, Error}, State}
     end;
 handle_call(Msg, _From, State = #state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
@@ -87,6 +88,11 @@ handle_cast(Msg, State = #state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
     {noreply, State}.
 
+handle_info(
+    {'DOWN', _Ref, process, Pid, _Info},
+    State = #state{connection = #{http_connection := Pid}}
+) ->
+    {noreply, State#state{connection = undefined}};
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
