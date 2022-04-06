@@ -27,7 +27,7 @@ uuid(_) ->
 flags(_) ->
     [read].
 
-init(Path, _) ->
+init(Path, []) ->
     Descriptors = [
         {gatt_descriptor_cud, 0, ["Diagnostics"]},
         {gatt_descriptor_pf, 1, [opaque]}

@@ -45,7 +45,8 @@ init(_) ->
     {ok, #state{}}.
 
 handle_call(Call, From, State = #state{connection = undefined}) ->
-    case grpc_client:connect(tcp, "localhost", 4467) of
+    GrpcPort = application:get_env(gateway_config, grpc_port, 4467),
+    case grpc_client:connect(tcp, "localhost", GrpcPort) of
         {ok, Connection} ->
             handle_call(Call, From, State#state{connection = Connection});
         {error, Error} ->
@@ -53,17 +54,14 @@ handle_call(Call, From, State = #state{connection = undefined}) ->
     end;
 handle_call(status, _From, State = #state{connection = Connection}) ->
     case call_unary(Connection, height, #{}) of
-        {ok, Result} ->
-            Height = kvc:path(<<"result.height">>, Result),
+        {ok, #{result := #{height := Height}}} ->
             {reply, {ok, [{"connected", "yes"}, {"height", integer_to_list(Height)}]}, State};
         {error, _} ->
             {reply, {ok, [{"connected", "no"}]}, State#state{connection = undefined}}
     end;
 handle_call(pubkey, _From, State = #state{connection = Connection}) ->
     case call_unary(Connection, pubkey, #{}) of
-        {ok, Result} ->
-            PubKey = kvc:path(<<"result.address">>, Result),
-            OnboardingKey = kvc:path(<<"result.onboarding_address">>, Result),
+        {ok, #{result := #{address := PubKey, onboarding_address := OnboardingKey}}} ->
             {reply, {ok, {PubKey, OnboardingKey}}, State};
         {error, _} ->
             {reply, {ok, [{"connected", "no"}]}, State#state{connection = undefined}}
@@ -76,8 +74,7 @@ handle_call({add_gateway, [Owner, Payer, Mode]}, _From, State = #state{connectio
             staking_mode => Mode
         })
     of
-        {ok, Result} ->
-            BinTxn = kvc:path(<<"result.add_gateway_txn">>, Result),
+        {ok, #{result := #{add_gateway_txn := BinTxn}}} ->
             {reply, {ok, BinTxn}, State};
         {error, Error} ->
             {repl, {error, Error}, State}
