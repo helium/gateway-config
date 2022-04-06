@@ -24,11 +24,11 @@
     connection = undefined :: grpc_client:connection() | undefined
 }).
 
--spec status() -> [tuple()].
+-spec status() -> {ok, [tuple()]} | {error, term()}.
 status() ->
     gen_server:call(?MODULE, status).
 
--spec pubkey() -> {PubKey :: binary(), OnboardingKey :: binary()}.
+-spec pubkey() -> {ok, {PubKey :: binary(), OnboardingKey :: binary()}} | {error, term()}.
 pubkey() ->
     gen_server:call(?MODULE, pubkey).
 
@@ -98,4 +98,6 @@ handle_info(_Msg, State) ->
     {noreply, State}.
 
 call_unary(Connection, Method, Arguments) ->
-    grpc_client:unary(Connection, Arguments, ?SERVICE, Method, gateway_local_client_pb, []).
+    grpc_client:unary(Connection, Arguments, ?SERVICE, Method, gateway_local_client_pb, [
+        {timeout, 5000}
+    ]).

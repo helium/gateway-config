@@ -13,7 +13,6 @@
         gatt,
         connman,
         clique,
-        kvc,
         grpc_client,
         http2_client
     ]},
