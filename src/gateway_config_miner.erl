@@ -81,7 +81,7 @@ handle_call({add_gateway, [Owner, Payer, Mode]}, _From, State = #state{connectio
         {ok, #{result := #{add_gateway_txn := BinTxn}}} ->
             {reply, {ok, BinTxn}, State};
         {error, Error} ->
-            {reply, {error, Error}, State}
+            {reply, {error, Error}, State#state{connection = undefined}}
     end;
 handle_call(Msg, _From, State = #state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
