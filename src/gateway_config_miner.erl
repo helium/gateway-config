@@ -7,6 +7,7 @@
 
 %% gen_server
 -export([
+    start_link/0,
     init/1,
     handle_call/3,
     handle_cast/2,
@@ -40,8 +41,10 @@ pubkey() ->
 add_gateway(Owner, Payer, Mode) ->
     gen_server:call(?MODULE, {add_gateway, [Owner, Payer, Mode]}).
 
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
 init(_) ->
-    erlang:register(?MODULE, self()),
     {ok, #state{}}.
 
 handle_call(Call, From, State = #state{connection = undefined}) ->
