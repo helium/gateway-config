@@ -18,9 +18,6 @@ uuid() ->
     ?UUID_GATEWAY_GATT_SERVICE.
 
 init(_) ->
-    {ok, Bus} = ebus:system(),
-    {ok, MinerProxy} = ebus_proxy:start_link(Bus, ?MINER_APPLICATION_NAME, []),
-
     %% TODO: Connman crashing invalidates a number of pids that are
     %% used in characteristics. We should probably monitor and
     %% restart
@@ -32,12 +29,12 @@ init(_) ->
         ]},
         {gateway_gatt_char_wifi_ssid, 3, []},
         {gateway_gatt_char_wifi_services, 4, []},
-        {gateway_gatt_char_pubkey, 5, [MinerProxy]},
-        {gateway_gatt_char_add_gateway, 6, [MinerProxy]},
-        {gateway_gatt_char_assert_loc, 7, [MinerProxy]},
+        {gateway_gatt_char_pubkey, 5, []},
+        {gateway_gatt_char_add_gateway, 6, []},
+        {gateway_gatt_char_assert_loc, 7, []},
         {gateway_gatt_char_lights, 8, []},
-        {gateway_gatt_char_onboarding_key, 9, [MinerProxy]},
-        {gateway_gatt_char_diagnostics, 10, [MinerProxy]},
+        {gateway_gatt_char_onboarding_key, 9, []},
+        {gateway_gatt_char_diagnostics, 10, []},
         {gateway_gatt_char_eth_online, 11, []},
         {gateway_gatt_char_wifi_remove, 12, []},
         {gateway_gatt_char_wifi_configured_services, 13, []}

@@ -16,7 +16,7 @@
     advertising_info/0,
     lights_event/1,
     lights_info/0,
-    diagnostics/1,
+    diagnostics/0,
     get_public_key/1,
     ble_device_info/0,
     disk_status/0
@@ -75,7 +75,7 @@ ip_address() ->
     {ok, Addrs} = inet:getifaddrs(),
     NonLocals = [
         Addr
-        || {_, Opts} <- Addrs, {addr, Addr} <- Opts, size(Addr) == 4, Addr =/= {127, 0, 0, 1}
+     || {_, Opts} <- Addrs, {addr, Addr} <- Opts, size(Addr) == 4, Addr =/= {127, 0, 0, 1}
     ],
     case NonLocals of
         [] ->
@@ -276,12 +276,12 @@ disk_status() ->
             "ok"
     end.
 
-%% @doc Fetches the current diagnostics information. This includes
-%% getting p2p status from a given ebus miner proxy object. The
-%% diagnostics proplist will contain a list of keyed string entries to
-%% indicate what the current status is on the local machine.
--spec diagnostics(ebus:proxy()) -> [{string(), string()}].
-diagnostics(Proxy) ->
+%% @doc Fetches the current diagnostics information. This includes getting
+%% connected status from the miner. The diagnostics proplist will contain a list
+%% of keyed string entries to indicate what the current status is on the local
+%% machine.
+-spec diagnostics() -> [{string(), string()}].
+diagnostics() ->
     Base = [
         {"eth", ?MODULE:mac_address(eth)},
         {"wifi", ?MODULE:mac_address(wifi)},
@@ -289,13 +289,11 @@ diagnostics(Proxy) ->
         {"ip", ?MODULE:ip_address()},
         {"disk", ?MODULE:disk_status()}
     ],
-    P2PStatus =
-        case ebus_proxy:call(Proxy, ?MINER_OBJECT(?MINER_MEMBER_P2P_STATUS)) of
-            {ok, [Result]} ->
-                Result;
-            {error, "org.freedesktop.DBus.Error.ServiceUnknown"} ->
-                lager:info("Miner not ready to get p2p status"),
-                [];
+
+    Status =
+        case gateway_config_miner:status() of
+            {ok, MinerStatus} ->
+                MinerStatus;
             {error, Error} ->
                 lager:notice("Failed to get p2p status: ~p", [Error]),
                 []
@@ -306,20 +304,17 @@ diagnostics(Proxy) ->
             lists:keystore(Key, 1, Acc, {Key, Val})
         end,
         Base,
-        P2PStatus
+        Status
     ).
 
 -spec get_public_key(onboarding_key | pubkey) -> {ok, string()} | {error, term()}.
 get_public_key(KeyName) ->
-    KeysFile = application:get_env(gateway_config, keys_file, "data/public_keys"),
-    case file:consult(KeysFile) of
+    case gateway_config_miner:pubkey() of
+        {ok, {PubKey, OnboardingKey}} ->
+            case KeyName of
+                pubkey -> libp2p_crypto:bin_to_b58(PubKey);
+                onboarding_key -> libp2p_crypto:bin_to_b58(OnboardingKey)
+            end;
         {error, Error} ->
-            {error, Error};
-        {ok, KeyList} ->
-            case proplists:get_value(KeyName, KeyList, undefined) of
-                undefined ->
-                    {error, key_not_found};
-                V ->
-                    {ok, V}
-            end
+            {error, Error}
     end.

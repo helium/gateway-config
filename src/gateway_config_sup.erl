@@ -41,6 +41,12 @@ init([]) ->
             restart => permanent
         },
         #{
+            id => gateway_config_miner,
+            start => {gateway_config_miner, start_link, []},
+            type => worker,
+            restart => permanent
+        },
+        #{
             id => gateway_config_led,
             start => {gateway_config_led, start_link, [B]},
             type => worker,
