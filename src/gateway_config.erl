@@ -312,8 +312,8 @@ get_public_key(KeyName) ->
     case gateway_config_miner:pubkey() of
         {ok, {PubKey, OnboardingKey}} ->
             case KeyName of
-                pubkey -> libp2p_crypto:bin_to_b58(PubKey);
-                onboarding_key -> libp2p_crypto:bin_to_b58(OnboardingKey)
+                pubkey -> {ok, libp2p_crypto:bin_to_b58(PubKey)};
+                onboarding_key -> {ok, libp2p_crypto:bin_to_b58(OnboardingKey)}
             end;
         {error, Error} ->
             {error, Error}
