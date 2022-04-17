@@ -307,6 +307,25 @@ diagnostics() ->
         Status
     ).
 
+-ifdef(TEST).
+
+-spec get_public_key(onboarding_key | pubkey) -> {ok, string()} | {error, term()}.
+get_public_key(KeyName) ->
+    KeysFile = application:get_env(gateway_config, keys_file, "test/public_keys"),
+    case file:consult(KeysFile) of
+        {ok, KeyList} ->
+            case proplists:get_value(KeyName, KeyList, undefined) of
+                undefined ->
+                    {error, key_not_found};
+                V ->
+                    {ok, V}
+            end;
+        {error, Error} ->
+            {error, Error}
+    end.
+
+-else.
+
 -spec get_public_key(onboarding_key | pubkey) -> {ok, string()} | {error, term()}.
 get_public_key(KeyName) ->
     case gateway_config_miner:pubkey() of
@@ -318,3 +337,5 @@ get_public_key(KeyName) ->
         {error, Error} ->
             {error, Error}
     end.
+
+-endif.
