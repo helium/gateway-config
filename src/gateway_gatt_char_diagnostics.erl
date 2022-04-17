@@ -18,7 +18,6 @@
 
 -record(state, {
     path :: ebus:object_path(),
-    proxy :: ebus:proxy(),
     value = <<"init">> :: binary()
 }).
 
@@ -28,18 +27,18 @@ uuid(_) ->
 flags(_) ->
     [read].
 
-init(Path, [Proxy]) ->
+init(Path, []) ->
     Descriptors = [
         {gatt_descriptor_cud, 0, ["Diagnostics"]},
         {gatt_descriptor_pf, 1, [opaque]}
     ],
-    {ok, Descriptors, #state{path = Path, proxy = Proxy}}.
+    {ok, Descriptors, #state{path = Path}}.
 
 read_value(State = #state{value = Value}, #{"offset" := Offset}) ->
     {ok, binary:part(Value, Offset, byte_size(Value) - Offset), State};
 read_value(State = #state{}, _) ->
     Value =
-        case gateway_config:diagnostics(State#state.proxy) of
+        case gateway_config:diagnostics() of
             List when is_list(List), length(List) == 0 -> <<"wait">>;
             List when is_list(List), length(List) > 0 -> diagnostics_to_bin(List);
             _ -> <<"unknown">>
@@ -62,22 +61,21 @@ handle_info(Msg, State) ->
 -include_lib("eunit/include/eunit.hrl").
 
 uuid_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_DIAGNOSTICS, ?MODULE:uuid(Char)),
     ok.
 
 flags_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual([read], ?MODULE:flags(Char)),
     ok.
 
 success_test() ->
     Path = "char_path",
-    {ok, _, Char} = ?MODULE:init(Path, [proxy]),
+    {ok, _, Char} = ?MODULE:init(Path, []),
 
     Diagnostics = [
-        {"connected", "yes"},
-        {"dialable", "no"}
+        {"connected", "yes"}
     ],
     Msg = #gateway_diagnostics_v1_pb{diagnostics = Diagnostics},
     MsgBin = gateway_gatt_char_diagnostics_pb:encode_msg(Msg),
@@ -86,7 +84,7 @@ success_test() ->
     meck:expect(
         gateway_config,
         diagnostics,
-        fun(proxy) ->
+        fun() ->
             Diagnostics
         end
     ),
@@ -108,10 +106,10 @@ success_test() ->
 
 error_test() ->
     Path = "char_path",
-    {ok, _, Char} = ?MODULE:init(Path, [proxy]),
+    {ok, _, Char} = ?MODULE:init(Path, []),
 
-    %% failure to communicate with miner returns an empty list of checks
-    Diagnostics = [],
+    %% failure to communicate with miner returns a "connected", "no"
+    Diagnostics = [{"connected", "no"}],
     Msg = #gateway_diagnostics_v1_pb{diagnostics = Diagnostics},
     MsgBin = gateway_gatt_char_diagnostics_pb:encode_msg(Msg),
 
@@ -119,7 +117,7 @@ error_test() ->
     meck:expect(
         gateway_config,
         diagnostics,
-        fun(proxy) ->
+        fun() ->
             Diagnostics
         end
     ),

@@ -76,9 +76,7 @@ handle_signal(SignalID, Msg, State = #state{service_signal = SignalID}) ->
 handle_signal(_SignalID, Msg, State = #state{}) ->
     %% State#state.service_signal /= _SignalID.
     %% Signal from a different service
-    Args = ebus_message:args(Msg),
-    lager:warning("unexpected service_signal: ~p", [Args]),
-    case Args of
+    case ebus_message:args(Msg) of
         {ok, ["State", "online"]} ->
             NextState = maybe_notify_value(update_value(State, "disconnect")),
             {noreply, maybe_notify_value(update_value(NextState, "online"))};
@@ -204,6 +202,15 @@ meck_connman_register_notify() ->
         end
     ).
 
+meck_connman_scan() ->
+    meck:expect(
+        connman,
+        scan,
+        fun(wifi) ->
+            ok
+        end
+    ).
+
 meck_connman_unregister_notify() ->
     %% Don't mock the wifi_listener unregistration since we never
     %% unregister the wifi state listener
@@ -222,6 +229,7 @@ meck_validate_connman() ->
 uuid_test() ->
     meck_gateway_config(),
     meck_connman_register_notify(),
+    meck_connman_scan(),
 
     {ok, _, Char} = ?MODULE:init("", [proxy]),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_WIFI_SSID, ?MODULE:uuid(Char)),
@@ -233,6 +241,7 @@ uuid_test() ->
 flags_test() ->
     meck_gateway_config(),
     meck_connman_register_notify(),
+    meck_connman_scan(),
 
     {ok, _, Char} = ?MODULE:init("", [proxy]),
     ?assertEqual([read, notify], ?MODULE:flags(Char)),
@@ -245,6 +254,7 @@ flags_test() ->
 services_test() ->
     meck_connman_register_notify(),
     meck_connman_unregister_notify(),
+    meck_connman_scan(),
     meck_gateway_config(),
 
     %% Set up one set of services
@@ -262,10 +272,20 @@ services_test() ->
     {ok, Result, Char3} = ?MODULE:read_value(Char2, #{}),
     ?assertEqual(list_to_binary(element(1, hd(Services))), Result),
 
+    meck:new(ebus_message, [passthrough]),
+    meck:expect(
+        ebus_message,
+        args,
+        fun(_) ->
+            {ok, get({?MODULE, meck_message_args})}
+        end
+    ),
+
     %% Try notifying and reading some new services
     Char4 = lists:foldl(
-        fun(NewServices, State) ->
+        fun({MsgArgs, NewServices}, State) ->
             put({?MODULE, meck_services}, NewServices),
+            put({?MODULE, meck_message_args}, MsgArgs),
             {noreply, NewState} = ?MODULE:handle_signal(wifi_listener, ignore, State),
             ExpectedValue =
                 case NewServices of
@@ -280,12 +300,12 @@ services_test() ->
         Char3,
         [
             %% Try setting twice with no services at all
-            [],
-            [],
+            {["Connected", false], []},
+            {["Connected", false], []},
             %% Set a new service with a new path
-            [{"NewOnlineService", "OtherPath"}],
+            {["Connected", true], [{"NewOnlineService", "OtherPath"}]},
             %% Then set again to ensure that setting the same path twice works
-            [{"NewOnlineService", "OtherPath"}]
+            {["Connected", true], [{"NewOnlineService", "OtherPath"}]}
         ]
     ),
 
@@ -293,15 +313,6 @@ services_test() ->
     {ok, Char5} = ?MODULE:stop_notify(Char4),
     %% Stop notifying again has no impact
     ?assertEqual({ok, Char5}, ?MODULE:stop_notify(Char5)),
-
-    meck:new(ebus_message, [passthrough]),
-    meck:expect(
-        ebus_message,
-        args,
-        fun(_) ->
-            {ok, get({?MODULE, meck_message_args})}
-        end
-    ),
 
     _Char6 = lists:foldl(
         fun({MsgArgs, NewServices}, State) ->
@@ -317,7 +328,7 @@ services_test() ->
         Char5,
         [
             %% Set a new service with a new path
-            {["State", "foo"], [{"StateOnlineService", "StatePath"}]},
+            {["State", "online"], [{"StateOnlineService", "StatePath"}]},
             %% Set with no actual state change.. the
             %% service list below will not be read but
             %% will be validated against.

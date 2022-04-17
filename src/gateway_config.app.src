@@ -12,7 +12,9 @@
         ebus,
         gatt,
         connman,
-        clique
+        clique,
+        grpc_client,
+        http2_client
     ]},
     {env, []},
     {modules, []},

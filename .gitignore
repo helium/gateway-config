@@ -20,3 +20,6 @@ tags
 log/
 data/
 src/pb/
+
+# gpb auto-generatd erl modules
+src/grpc/

@@ -18,7 +18,6 @@
 
 -record(state, {
     path :: ebus:object_path(),
-    proxy :: ebus:proxy(),
     notify = false :: boolean(),
     value = <<"init">> :: binary()
 }).
@@ -29,12 +28,12 @@ uuid(_) ->
 flags(_) ->
     [read, write, notify].
 
-init(Path, [Proxy]) ->
+init(Path, _) ->
     Descriptors = [
         {gatt_descriptor_cud, 0, ["Add Gateway"]},
         {gatt_descriptor_pf, 1, [opaque]}
     ],
-    {ok, Descriptors, #state{path = Path, proxy = Proxy}}.
+    {ok, Descriptors, #state{path = Path}}.
 
 read_value(State = #state{value = Value}, #{"offset" := Offset}) ->
     {ok, binary:part(Value, Offset, byte_size(Value) - Offset), State};
@@ -43,28 +42,21 @@ read_value(State = #state{}, _) ->
 
 write_value(State = #state{}, Bin) ->
     try gateway_gatt_char_add_gateway_pb:decode_msg(Bin, gateway_add_gateway_v1_pb) of
-        #gateway_add_gateway_v1_pb{owner = OwnerB58, fee = Fee, amount = Amount, payer = PayerB58} ->
+        #gateway_add_gateway_v1_pb{owner = OwnerB58, payer = PayerB58} ->
             lager:info("Requesting add_gateway txn for owner: ~p, payer: ~p", [OwnerB58, PayerB58]),
             Value =
                 case
-                    ebus_proxy:call(
-                        State#state.proxy,
-                        "/",
-                        ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-                        [string, uint64, uint64, string],
-                        [OwnerB58, Fee, Amount, PayerB58]
+                    gateway_config_miner:add_gateway(
+                        libp2p_crypto:b58_to_bin(OwnerB58),
+                        libp2p_crypto:b58_to_bin(PayerB58),
+                        full
                     )
                 of
-                    {ok, [BinTxn]} ->
+                    {ok, BinTxn} ->
                         BinTxn;
                     {error, Error} ->
                         lager:warning("Failed to get add_gateway txn: ~p", [Error]),
-                        case Error of
-                            "org.freedesktop.DBus.Error.ServiceUnknown" -> <<"wait">>;
-                            ?MINER_ERROR_BADARGS -> <<"badargs">>;
-                            ?MINER_ERROR_INTERNAL -> <<"error">>;
-                            _ -> <<"unknown">>
-                        end
+                        <<"error">>
                 end,
             {ok, maybe_notify_value(State#state{value = Value})}
     catch
@@ -102,36 +94,34 @@ maybe_notify_value(State = #state{}) ->
 -include_lib("eunit/include/eunit.hrl").
 
 uuid_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_ADD_GW, ?MODULE:uuid(Char)),
     ok.
 
 flags_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual([read, write, notify], ?MODULE:flags(Char)),
     ok.
 
 success_test() ->
     Path = "char_path",
-    {ok, _, Char} = ?MODULE:init(Path, [proxy]),
-    Owner = "owner",
-    Fee = 1,
-    Amount = 10,
-    Payer = "payer",
+    {ok, _, Char} = ?MODULE:init(Path, []),
+    Owner = "1126tLZARvpkpn8zNes5w9zoYY3UJ4XbmW7Vqbc82B1XJbQAZ4hv",
+    OwnerBin = libp2p_crypto:b58_to_bin(Owner),
+    Payer = "112EJZ94QhUXQDm8V13sAn4CzKWA46zdgXcftR4raVkq2QtbCAiS",
+    PayerBin = libp2p_crypto:b58_to_bin(Payer),
     BinTxn = <<"txn">>,
 
-    meck:new(ebus_proxy, [passthrough]),
+    meck:new(gateway_config_miner, [passthrough]),
     meck:expect(
-        ebus_proxy,
-        call,
+        gateway_config_miner,
+        add_gateway,
         fun(
-            proxy,
-            "/",
-            ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-            [string, uint64, uint64, string],
-            [B, F, A, P]
-        ) when B == Owner, F == Fee, A == Amount, P == Payer ->
-            {ok, [BinTxn]}
+            B,
+            P,
+            M
+        ) when B == OwnerBin, P == PayerBin, M == full ->
+            {ok, BinTxn}
         end
     ),
     meck:new(gatt_characteristic, [passthrough]),
@@ -150,7 +140,7 @@ success_test() ->
     %% Calling start_notify again has no effect
     ?assertEqual({ok, Char1}, ?MODULE:start_notify(Char1)),
 
-    Msg = #gateway_add_gateway_v1_pb{owner = Owner, fee = Fee, amount = Amount, payer = Payer},
+    Msg = #gateway_add_gateway_v1_pb{owner = Owner, fee = 1, amount = 10, payer = Payer},
     EncodedMsg = gateway_gatt_char_add_gateway_pb:encode_msg(Msg),
     {ok, Char2} = ?MODULE:write_value(Char1, EncodedMsg),
     ?assertEqual({ok, BinTxn, Char2}, ?MODULE:read_value(Char2, #{})),
@@ -158,8 +148,8 @@ success_test() ->
     {ok, Char3} = ?MODULE:stop_notify(Char2),
     ?assertEqual({ok, Char3}, ?MODULE:stop_notify(Char3)),
 
-    ?assert(meck:validate(ebus_proxy)),
-    meck:unload(ebus_proxy),
+    ?assert(meck:validate(gateway_config_miner)),
+    meck:unload(gateway_config_miner),
     ?assert(meck:validate(gatt_characteristic)),
     meck:unload(gatt_characteristic),
 
@@ -167,46 +157,36 @@ success_test() ->
 
 error_test() ->
     Path = "char_path",
-    {ok, _, Char} = ?MODULE:init(Path, [proxy]),
+    {ok, _, Char} = ?MODULE:init(Path, []),
+    Owner = "1126tLZARvpkpn8zNes5w9zoYY3UJ4XbmW7Vqbc82B1XJbQAZ4hv",
+    OwnerBin = libp2p_crypto:b58_to_bin(Owner),
+    Payer = "112EJZ94QhUXQDm8V13sAn4CzKWA46zdgXcftR4raVkq2QtbCAiS",
+    PayerBin = libp2p_crypto:b58_to_bin(Payer),
 
-    meck:new(ebus_proxy, [passthrough]),
+    meck:new(gateway_config_miner, [passthrough]),
     meck:expect(
-        ebus_proxy,
-        call,
+        gateway_config_miner,
+        add_gateway,
         fun(
-            proxy,
-            "/",
-            ?MINER_OBJECT(?MINER_MEMBER_ADD_GW),
-            [string, uint64, uint64, string],
-            [B, _Fee, _Owner, _Payer]
-        ) ->
-            {error, B}
+            B,
+            P,
+            M
+        ) when B == OwnerBin, P == PayerBin, M == full ->
+            {error, <<"error">>}
         end
     ),
 
-    lists:foldl(
-        fun({ErrorName, Value}, State) ->
-            Msg = #gateway_add_gateway_v1_pb{owner = ErrorName, fee = 1, amount = 10},
-            EncodedMsg = gateway_gatt_char_add_gateway_pb:encode_msg(Msg),
-            {ok, NewState} = ?MODULE:write_value(State, EncodedMsg),
-            ?assertEqual({ok, Value, NewState}, ?MODULE:read_value(NewState, #{})),
-            NewState
-        end,
-        Char,
-        [
-            {?MINER_ERROR_BADARGS, <<"badargs">>},
-            {?MINER_ERROR_INTERNAL, <<"error">>},
-            {"org.freedesktop.DBus.Error.ServiceUnknown", <<"wait">>},
-            {"com.unknown.Error", <<"unknown">>}
-        ]
-    ),
+    Msg = #gateway_add_gateway_v1_pb{owner = Owner, fee = 1, amount = 10, payer = Payer},
+    EncodedMsg = gateway_gatt_char_add_gateway_pb:encode_msg(Msg),
+    {ok, NewState} = ?MODULE:write_value(Char, EncodedMsg),
+    ?assertEqual({ok, <<"error">>, NewState}, ?MODULE:read_value(NewState, #{})),
 
     InvalidReqBin = <<"invalid">>,
     {ok, Char2} = ?MODULE:write_value(Char, InvalidReqBin),
     ?assertEqual({ok, <<"badargs">>, Char2}, ?MODULE:read_value(Char2, #{})),
 
-    ?assert(meck:validate(ebus_proxy)),
-    meck:unload(ebus_proxy),
+    ?assert(meck:validate(gateway_config_miner)),
+    meck:unload(gateway_config_miner),
 
     ok.
 
