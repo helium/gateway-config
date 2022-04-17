@@ -41,17 +41,17 @@ read_value(State = #state{}, _) ->
 -include_lib("eunit/include/eunit.hrl").
 
 uuid_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual(?UUID_GATEWAY_GATT_CHAR_ONBOARDING_KEY, ?MODULE:uuid(Char)),
     ok.
 
 flags_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
     ?assertEqual([read], ?MODULE:flags(Char)),
     ok.
 
 read_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
 
     application:set_env(gateway_config, keys_file, "test/public_keys"),
     ?assertEqual({ok, <<"onboarding_key">>, Char}, ?MODULE:read_value(Char, #{})),
@@ -59,7 +59,7 @@ read_test() ->
     ok.
 
 error_test() ->
-    {ok, _, Char} = ?MODULE:init("", [proxy]),
+    {ok, _, Char} = ?MODULE:init("", []),
 
     application:set_env(gateway_config, keys_file, "test/no_keys_file"),
     ?assertEqual({ok, <<"unknown">>, Char}, ?MODULE:read_value(Char, #{})),
