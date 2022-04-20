@@ -61,6 +61,8 @@ init(_) ->
     {ok, Bus} = ebus:system(),
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
 
+    erlang:send_after(2 * 1000, self(), {enable_advertising, true}),
+
     {ok, #state{
         bluetooth_proxy = BluezProxy,
         button_handle = ButtonPid
@@ -127,7 +129,7 @@ handle_info({button_clicked, _, 1}, State = #state{}) ->
     connman:scan(wifi),
     handle_info({enable_advertising, true}, State);
 %% BLE Advertising
-handle_info({enable_advertising, true}, State = #state{bluetooth_advertisement = undefined}) ->
+handle_info({enable_advertising, true}p, State = #state{bluetooth_advertisement = undefined}) ->
     lager:info("Enabling advertising"),
     {ok, Bus} = gateway_gatt_application:bus(),
     {ok, AdvPid} = ble_advertisement:start_link(
@@ -138,8 +140,8 @@ handle_info({enable_advertising, true}, State = #state{bluetooth_advertisement =
         []
     ),
     erlang:cancel_timer(State#state.bluetooth_timer),
-    Timer = erlang:send_after(?ADVERTISING_TIMEOUT, self(), timeout_advertising),
-    {noreply, State#state{bluetooth_advertisement = AdvPid, bluetooth_timer = Timer}};
+    %% Timer = erlang:send_after(?ADVERTISING_TIMEOUT, self(), timeout_advertising),
+    {noreply, State#state{bluetooth_advertisement = AdvPid, bluetooth_timer = undefined}};
 handle_info({enable_advertising, false}, State = #state{bluetooth_advertisement = Pid}) when
     is_pid(Pid)
 ->
