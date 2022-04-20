@@ -13,8 +13,7 @@
 ]).
 
 -record(state, {
-    path :: ebus:object_path(),
-    proxy :: ebus:proxy()
+    path :: ebus:object_path()
 }).
 
 uuid(_) ->
@@ -23,12 +22,12 @@ uuid(_) ->
 flags(_) ->
     [read].
 
-init(Path, [Proxy]) ->
+init(Path, []) ->
     Descriptors = [
         {gatt_descriptor_cud, 0, ["Onboarding Key"]},
         {gatt_descriptor_pf, 1, [utf8_string]}
     ],
-    {ok, Descriptors, #state{path = Path, proxy = Proxy}}.
+    {ok, Descriptors, #state{path = Path}}.
 
 read_value(State = #state{}, _) ->
     Value =
