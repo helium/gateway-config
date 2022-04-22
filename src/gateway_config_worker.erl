@@ -129,7 +129,7 @@ handle_info({button_clicked, _, 1}, State = #state{}) ->
     connman:scan(wifi),
     handle_info({enable_advertising, true}, State);
 %% BLE Advertising
-handle_info({enable_advertising, true}p, State = #state{bluetooth_advertisement = undefined}) ->
+handle_info({enable_advertising, true}, State = #state{bluetooth_advertisement = undefined}) ->
     lager:info("Enabling advertising"),
     {ok, Bus} = gateway_gatt_application:bus(),
     {ok, AdvPid} = ble_advertisement:start_link(
