@@ -61,6 +61,7 @@ init(_) ->
     {ok, Bus} = ebus:system(),
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
 
+    io:format("will enable advertise in 2 secs~n"),
     erlang:send_after(2 * 1000, self(), {enable_advertising, true}),
 
     {ok, #state{
