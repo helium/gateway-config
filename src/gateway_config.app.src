@@ -13,6 +13,8 @@
         gatt,
         connman,
         clique,
+        libp2p_crypto,
+        grpc_lib,
         grpc_client,
         http2_client
     ]},
