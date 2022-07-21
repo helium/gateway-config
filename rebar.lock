@@ -43,7 +43,7 @@
  {<<"gpb">>,{pkg,<<"gpb">>,<<"4.19.5">>},2},
  {<<"grpc_client">>,
   {git,"https://github.com/Bluehouse-Technology/grpc_client.git",
-       {ref,"f29516eaf590c63c0c300f98c9b75feff24f8351"}},
+       {ref,"02689e7992ef70b42b6b890db450ae4a7c21a50c"}},
   0},
  {<<"grpc_lib">>,
   {git,"https://github.com/Bluehouse-Technology/grpc_lib",
@@ -55,7 +55,7 @@
   0},
  {<<"helium_proto">>,
   {git,"https://github.com/helium/proto.git",
-       {ref,"5b649b1b1e23002826c1d252a0646fc5a7328578"}},
+       {ref,"13a093fbd3b2109c1ce91fa17bbd083828e88507"}},
   0},
  {<<"http2_client">>,
   {git,"https://github.com/Bluehouse-Technology/http2_client.git",
@@ -71,7 +71,7 @@
  {<<"small_ints">>,{pkg,<<"small_ints">>,<<"0.1.0">>},2},
  {<<"ws2312">>,
   {git,"git@github.com:iotpi-helium/ws2312.git",
-       {ref,"aabf847f24cb3106e986e9f6bac380fc8ef20727"}},
+       {ref,"8b19442090103bac44e5872abdf821edb163c23b"}},
   0}]}.
 [
 {pkg_hash,[

@@ -9,7 +9,14 @@
          handle_cast/2,
          handle_info/2
         ]).
-
+-export([
+         panic/0,
+         disable/0,
+         online/0,
+         offline/0,
+         undef/0,
+         advert/0
+]).
 -define(COLOR_PANIC, <<16#00FF00:24>>).
 -define(COLOR_ONLINE, <<16#FF0000:24>>).
 -define(COLOR_OFFLINE, <<16#00AAAA:24>>).

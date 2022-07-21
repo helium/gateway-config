@@ -38,7 +38,7 @@
 -type led_state() :: undefined | panic | disable | {advert, term()} | online | offline.
 
 -record(state, {
-    handle = undefined :: lp5562:state() | ws2312::led_handle() | undefined,
+    handle = undefined :: lp5562:state() | ws2312_helium:ws2312_handle() |undefined,
     state :: led_state(),
     off_file :: string(),
     pairable_signal :: ebus:filter_id(),
@@ -74,7 +74,7 @@ init([Bus]) ->
                 self() ! init_led,
                 LS;
             _ ->
-                case ws2312:start_link() of
+                case ws2312_helium:start_link() of
                     {ok, Handle} -> Handle
                 end,
                 lager:warning("No i2c device found, running in stub mode"),
@@ -226,17 +226,17 @@ handle_led_event(Event, State = #state{}) ->
     end.
 
 %% pattern match for ws2312
-update_led(State = #state{state = panic, is_pid(handle)}) ->
+update_led(State = #state{state = panic}) when is_pid(State#state.handle) ->
     led_set_color(?COLOR_RED, State);
-update_led(State = #state{state = disable}, is_pid(handle)) ->
+update_led(State = #state{state = disable}) when is_pid(State#state.handle) ->
     led_set_color(?COLOR_OFF, State);
-update_led(State = #state{state = online}, is_pid(handle)) ->
+update_led(State = #state{state = online}) when is_pid(State#state.handle) ->
     led_set_color(?COLOR_GREEN, State);
-update_led(State = #state{state = offline}, is_pid(handle)) ->
+update_led(State = #state{state = offline}) when is_pid(State#state.handle) ->
     led_set_color(?COLOR_ORANGE, State);
-update_led(State = #state{state = undefined}, is_pid(handle)) ->
+update_led(State = #state{state = undefined}) when is_pid(State#state.handle) ->
     led_set_color(?COLOR_ORANGE, State);
-update_led(State = #state{state = {advert, _}}, is_pid(handle)) ->
+update_led(State = #state{state = {advert, _}}) when is_pid(State#state.handle) ->
     led_set_color(?COLOR_BLUE, State);
 %% pattern match for original lp5562
 update_led(State = #state{state = panic}) ->
