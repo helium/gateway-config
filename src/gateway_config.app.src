@@ -4,6 +4,7 @@
     {registered, []},
     {mod, {gateway_config_app, []}},
     {applications, [
+        ws2312,
         kernel,
         stdlib,
         erlang_ale,
