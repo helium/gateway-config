@@ -75,10 +75,11 @@ init([Bus]) ->
                 LS;
             _ ->
                 case ws2312_helium:start_link() of
-                    {ok, Handle} -> Handle
-                end,
-                lager:warning("No i2c device found, running in stub mode"),
-                undefined
+                    {ok, Handle} -> Handle;
+                    _ ->
+                        lager:warning("No i2c device found, running in stub mode"),
+                        undefined
+                end
         end,
 
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
@@ -227,8 +228,10 @@ handle_led_event(Event, State = #state{}) ->
 
 %% pattern match for ws2312
 update_led(State = #state{state = panic}) when is_pid(State#state.handle) ->
+    io:format("panic: ws2312~n"),
     ws2312_helium:panic();
 update_led(State = #state{state = disable}) when is_pid(State#state.handle) ->
+    io:format("disable: ws2312~n"),    
     ws2312_helium:disable();
 update_led(State = #state{state = online}) when is_pid(State#state.handle) ->
     ws2312_helium:online();
@@ -237,6 +240,7 @@ update_led(State = #state{state = offline}) when is_pid(State#state.handle) ->
 update_led(State = #state{state = undefined}) when is_pid(State#state.handle) ->
     ws2312_helium:undef();
 update_led(State = #state{state = {advert, _}}) when is_pid(State#state.handle) ->
+    io:format("advert: ws2312~n"),
     ws2312_helium:advert();
 %% pattern match for original lp5562
 update_led(State = #state{state = panic}) ->
@@ -250,6 +254,7 @@ update_led(State = #state{state = offline}) ->
 update_led(State = #state{state = undefined}) ->
     led_set_color(?COLOR_ORANGE, State);
 update_led(State = #state{state = {advert, _}}) ->
+    io:format("advert: lp5562, ~p~n", [State#state.handle]),
     led_set_color(?COLOR_BLUE, State).
 
 led_set_color(_Color, State = #state{handle = undefined}) ->
