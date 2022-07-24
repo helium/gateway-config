@@ -227,17 +227,17 @@ handle_led_event(Event, State = #state{}) ->
 
 %% pattern match for ws2312
 update_led(State = #state{state = panic}) when is_pid(State#state.handle) ->
-    led_set_color(?COLOR_RED, State);
+    ws2312_helium:panic();
 update_led(State = #state{state = disable}) when is_pid(State#state.handle) ->
-    led_set_color(?COLOR_OFF, State);
+    ws2312_helium:disable();
 update_led(State = #state{state = online}) when is_pid(State#state.handle) ->
-    led_set_color(?COLOR_GREEN, State);
+    ws2312_helium:online();
 update_led(State = #state{state = offline}) when is_pid(State#state.handle) ->
-    led_set_color(?COLOR_ORANGE, State);
+    ws2312_helium:offline();
 update_led(State = #state{state = undefined}) when is_pid(State#state.handle) ->
-    led_set_color(?COLOR_ORANGE, State);
+    ws2312_helium:undef();
 update_led(State = #state{state = {advert, _}}) when is_pid(State#state.handle) ->
-    led_set_color(?COLOR_BLUE, State);
+    ws2312_helium:advert();
 %% pattern match for original lp5562
 update_led(State = #state{state = panic}) ->
     led_set_color(?COLOR_RED, State);
