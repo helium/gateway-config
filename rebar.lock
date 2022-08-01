@@ -70,8 +70,8 @@
  {<<"multihash">>,{pkg,<<"multihash">>,<<"2.1.0">>},1},
  {<<"small_ints">>,{pkg,<<"small_ints">>,<<"0.1.0">>},2},
  {<<"ws2312">>,
-  {git,"git@github.com:iotpi-helium/ws2312.git",
-       {ref,"8b19442090103bac44e5872abdf821edb163c23b"}},
+  {git,"https://github.com/iotpi-argon/ws2312.git",
+       {ref,"1183c5a85115c3e51c678b7616b9b4a712f20fb6"}},
   0}]}.
 [
 {pkg_hash,[
