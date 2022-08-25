@@ -22,6 +22,8 @@ RUN make && make release
 
 FROM base AS final
 
+VOLUME ["/var/run/dbus"]
+
 COPY --from=build /tmp/gateway_config/_build/prod/rel/gateway_config /opt/gateway_config
 WORKDIR /opt/gateway_config
 
