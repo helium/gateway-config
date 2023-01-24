@@ -15,6 +15,7 @@ MAKE="make"
 endif
 
 compile:
+	$(REBAR) get-deps
 	$(MAKE) grpc
 	$(REBAR) compile
 
