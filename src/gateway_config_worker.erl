@@ -61,21 +61,28 @@ init(_) ->
     {ok, Bus} = ebus:system(),
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
 
+    %% io:format("will enable advertise in 2 secs~n"),
+    %% erlang:send_after(2 * 1000, self(), {enable_advertising, true}),
+
     {ok, #state{
         bluetooth_proxy = BluezProxy,
         button_handle = ButtonPid
     }}.
 
 init_button(Args) ->
-    case file:read_file_info("/dev/gpio") of
-        {ok, _} ->
-            Gpio = proplists:get_value(gpio, Args, 7),
-            {ok, Pid} = gpio_button:start_link(Gpio, self()),
-            Pid;
-        _ ->
-            lager:warning("No GPIO device tree found, running in stub mode"),
-            undefined
-    end.
+    Gpio = proplists:get_value(gpio, Args, 7),
+    {ok, Pid} = gpio_button:start_link(Gpio, self()),
+    Pid.
+    %% case file:read_file_info("/dev/gpio") of
+    %%     {ok, _} ->
+    %%         Gpio = proplists:get_value(gpio, Args, 7),
+    %%         lager:info("GPIO: ~d", Gpio),
+    %%         {ok, Pid} = gpio_button:start_link(Gpio, self()),
+    %%         Pid;
+    %%     _ ->
+    %%         lager:warning("No GPIO device tree found, running in stub mode"),
+    %%         undefined
+    %% end.
 
 handle_message(Member, _Msg, State) ->
     lager:warning("Unhandled config message ~p", [Member]),
@@ -120,7 +127,7 @@ handle_cast(Msg, State = #state{}) ->
     {noreply, State}.
 
 %% Button click
-handle_info({button_clicked, _, 1}, State = #state{}) ->
+handle_info({button_clicked, _, _}, State = #state{}) ->
     lager:info("Button clicked"),
     %% Start a scan for visible wifi services
     connman:enable(wifi, true),
@@ -138,8 +145,8 @@ handle_info({enable_advertising, true}, State = #state{bluetooth_advertisement =
         []
     ),
     erlang:cancel_timer(State#state.bluetooth_timer),
-    Timer = erlang:send_after(?ADVERTISING_TIMEOUT, self(), timeout_advertising),
-    {noreply, State#state{bluetooth_advertisement = AdvPid, bluetooth_timer = Timer}};
+    %% Timer = erlang:send_after(?ADVERTISING_TIMEOUT, self(), timeout_advertising),
+    {noreply, State#state{bluetooth_advertisement = AdvPid, bluetooth_timer = undefined}};
 handle_info({enable_advertising, false}, State = #state{bluetooth_advertisement = Pid}) when
     is_pid(Pid)
 ->

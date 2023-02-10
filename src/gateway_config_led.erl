@@ -38,7 +38,7 @@
 -type led_state() :: undefined | panic | disable | {advert, term()} | online | offline.
 
 -record(state, {
-    handle = undefined :: lp5562:state() | undefined,
+    handle = undefined :: lp5562:state() | ws2312_helium:ws2312_handle() |undefined,
     state :: led_state(),
     off_file :: string(),
     pairable_signal :: ebus:filter_id(),
@@ -74,8 +74,12 @@ init([Bus]) ->
                 self() ! init_led,
                 LS;
             _ ->
-                lager:warning("No i2c device found, running in stub mode"),
-                undefined
+                case ws2312_helium:start_link() of
+                    {ok, Handle} -> Handle;
+                    _ ->
+                        lager:warning("No i2c device found, running in stub mode"),
+                        undefined
+                end
         end,
 
     {ok, BluezProxy} = ebus_proxy:start_link(Bus, ?BLUEZ_SERVICE, []),
@@ -222,6 +226,23 @@ handle_led_event(Event, State = #state{}) ->
             update_led(NewState)
     end.
 
+%% pattern match for ws2312
+update_led(State = #state{state = panic}) when is_pid(State#state.handle) ->
+    io:format("panic: ws2312~n"),
+    ws2312_helium:panic();
+update_led(State = #state{state = disable}) when is_pid(State#state.handle) ->
+    io:format("disable: ws2312~n"),    
+    ws2312_helium:disable();
+update_led(State = #state{state = online}) when is_pid(State#state.handle) ->
+    ws2312_helium:online();
+update_led(State = #state{state = offline}) when is_pid(State#state.handle) ->
+    ws2312_helium:offline();
+update_led(State = #state{state = undefined}) when is_pid(State#state.handle) ->
+    ws2312_helium:undef();
+update_led(State = #state{state = {advert, _}}) when is_pid(State#state.handle) ->
+    io:format("advert: ws2312~n"),
+    ws2312_helium:advert();
+%% pattern match for original lp5562
 update_led(State = #state{state = panic}) ->
     led_set_color(?COLOR_RED, State);
 update_led(State = #state{state = disable}) ->
@@ -233,6 +254,7 @@ update_led(State = #state{state = offline}) ->
 update_led(State = #state{state = undefined}) ->
     led_set_color(?COLOR_ORANGE, State);
 update_led(State = #state{state = {advert, _}}) ->
+    io:format("advert: lp5562, ~p~n", [State#state.handle]),
     led_set_color(?COLOR_BLUE, State).
 
 led_set_color(_Color, State = #state{handle = undefined}) ->
