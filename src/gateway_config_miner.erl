@@ -57,11 +57,14 @@ handle_call(Call, From, State = #state{connection = undefined}) ->
             {reply, {error, Error}, State}
     end;
 handle_call(status, _From, State = #state{connection = Connection}) ->
-    case call_unary(Connection, height, #{}) of
-        {ok, #{result := #{height := Height}}} ->
-            {reply, {ok, [{"connected", "yes"}, {"height", integer_to_list(Height)}]}, State};
-        {error, _} ->
-            {reply, {ok, [{"connected", "no"}]}, State#state{connection = undefined}}
+    %% TODO: add an appropriate analogue to this when gateway-rs gets
+    %% an equivalent GRPC. But for now, let's consider being able get
+    %% the region as being connected, which it is not.
+    case call_unary(Connection, region, #{}) of
+        {ok, #{result := #{region := _Region}}} ->
+            {reply, {ok, [{"connected", "yes"}, {"height", "0"}]}, State};
+        {error, Error} ->
+            {reply, {error, Error}, State#state{connection = undefined}}
     end;
 handle_call(pubkey, _From, State = #state{connection = Connection}) ->
     case call_unary(Connection, pubkey, #{}) of
