@@ -55,7 +55,7 @@
   0},
  {<<"helium_proto">>,
   {git,"https://github.com/helium/proto.git",
-       {ref,"5b649b1b1e23002826c1d252a0646fc5a7328578"}},
+       {ref,"ca96b405c42e205d5b082c9b3039b406814de8b5"}},
   0},
  {<<"http2_client">>,
   {git,"https://github.com/Bluehouse-Technology/http2_client.git",

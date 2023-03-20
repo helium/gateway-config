@@ -57,9 +57,13 @@ handle_call(Call, From, State = #state{connection = undefined}) ->
             {reply, {error, Error}, State}
     end;
 handle_call(status, _From, State = #state{connection = Connection}) ->
-    case call_unary(Connection, height, #{}) of
-        {ok, #{result := #{height := Height}}} ->
-            {reply, {ok, [{"connected", "yes"}, {"height", integer_to_list(Height)}]}, State};
+    case call_unary(Connection, router, #{}) of
+        {ok, #{result := #{uri := _RouterUri, connected := RouterConnected}}} ->
+            Connected = case RouterConnected of
+                            true -> "yes";
+                            false -> "no"
+                        end,
+            {reply, {ok, [{"connected", Connected}, {"height", 0}]}, State};
         {error, _} ->
             {reply, {ok, [{"connected", "no"}]}, State#state{connection = undefined}}
     end;
