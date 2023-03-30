@@ -100,6 +100,11 @@ handle_info(
     State = #state{connection = #{http_connection := Pid}}
 ) ->
     {noreply, State#state{connection = undefined}};
+handle_info(
+    {'EXIT', Pid, _Info},
+    State = #state{connection = #{http_connection := Pid}}
+) ->
+    {noreply, State#state{connection = undefined}};
 handle_info(_Msg, State) ->
     lager:warning("unhandled info message ~p", [_Msg]),
     {noreply, State}.
